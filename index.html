@@ -1,0 +1,4199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>ATTRITABLE SWARM // Field Simulation</title>
+<meta name="description" content="Command a mobile drone carrier, deploy your swarm on hardened targets, and survive as many levels as you can in this tactical arcade defense game.">
+
+<!-- Open Graph / social preview tags. Note: OG images must be a real hosted
+     URL for platforms like Discord/Twitter/Facebook to fetch them — a data:
+     URI here won't render as a preview image. Add og:image once this page
+     has a public URL, e.g.: <meta property="og:image" content="https://yourdomain.com/preview.png"> -->
+<meta property="og:title" content="ATTRITABLE SWARM">
+<meta property="og:description" content="Command a mobile drone carrier, deploy your swarm on hardened targets, and survive as many levels as you can.">
+<meta property="og:type" content="website">
+<meta name="twitter:card" content="summary">
+<meta name="twitter:title" content="ATTRITABLE SWARM">
+<meta name="twitter:description" content="Command a mobile drone carrier, deploy your swarm on hardened targets, and survive as many levels as you can.">
+
+<!-- Favicon: inline SVG so the game stays a single self-contained file —
+     a paper-toned target reticle matching the in-game HUD palette -->
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23454f34'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%23dbd5bd' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%237c2e28'/%3E%3Cline x1='32' y1='6' x2='32' y2='18' stroke='%23dbd5bd' stroke-width='3'/%3E%3Cline x1='32' y1='46' x2='32' y2='58' stroke='%23dbd5bd' stroke-width='3'/%3E%3Cline x1='6' y1='32' x2='18' y2='32' stroke='%23dbd5bd' stroke-width='3'/%3E%3Cline x1='46' y1='32' x2='58' y2='32' stroke='%23dbd5bd' stroke-width='3'/%3E%3C/svg%3E">
+<style>
+  :root{
+    --paper:#dbd5bd;
+    --paper-dark:#c7bfa2;
+    --paper-shadow:#b3ab8d;
+    --ink:#2b2a22;
+    --ink-soft:#4a4636;
+    --olive:#454f34;
+    --olive-light:#5c6a42;
+    --steel:#5c6b63;
+    --red:#7c2e28;
+    --red-bright:#a13a30;
+  }
+  *{box-sizing:border-box;}
+  html,body{
+    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    background:var(--paper);
+    font-family:'Courier New', Courier, monospace;
+    color:var(--ink);
+    -webkit-user-select:none; user-select:none;
+    display:flex; flex-direction:column;
+  }
+  #adTop{
+    flex-shrink:0; width:100%; min-height:50px;
+    display:flex; align-items:center; justify-content:center;
+    background:var(--paper-dark); overflow:hidden;
+  }
+  #adGap{ flex-shrink:0; height:16px; width:100%; } /* pixel barrier between the ad and the game UI */
+  #wrap{
+    position:relative; width:100%; flex:1 1 auto; min-height:0;
+    filter: sepia(0.12) contrast(1.06) saturate(0.85);
+  }
+  canvas{ display:block; position:absolute; top:0; left:0; touch-action:none; }
+  #vignette{
+    position:absolute; inset:0; pointer-events:none;
+    background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(30,28,20,0.35) 100%);
+    mix-blend-mode:multiply;
+  }
+  #heartbeatVignette{
+    position:absolute; inset:0; pointer-events:none; z-index:8; opacity:0;
+    background: radial-gradient(ellipse at center, rgba(124,46,40,0) 38%, rgba(124,46,40,0.95) 100%);
+  }
+  #healthWarningBorder, #arsenalWarningBorder{
+    position:absolute; inset:0; pointer-events:none; z-index:9; opacity:0;
+  }
+  #healthWarningBorder{ box-shadow: inset 0 0 90px 22px rgba(161,58,48,0.9); }
+  #arsenalWarningBorder{ box-shadow: inset 0 0 90px 22px rgba(196,142,45,0.9); }
+  #mapFrame{position:absolute; inset:8px; pointer-events:none; z-index:7;}
+  #mapFrame span{position:absolute; width:22px; height:22px; border-color:rgba(43,42,34,0.4); border-style:solid; border-width:0;}
+  #mapFrame .c-tl{top:0;left:0;border-top-width:2px;border-left-width:2px;}
+  #mapFrame .c-tr{top:0;right:0;border-top-width:2px;border-right-width:2px;}
+  #mapFrame .c-bl{bottom:0;left:0;border-bottom-width:2px;border-left-width:2px;}
+  #mapFrame .c-br{bottom:0;right:0;border-bottom-width:2px;border-right-width:2px;}
+  #foldlines{
+    position:absolute; inset:0; pointer-events:none; opacity:0.5;
+    background-image:
+      repeating-linear-gradient(90deg, rgba(60,55,40,0.05) 0px, rgba(60,55,40,0.05) 1px, transparent 1px, transparent 140px),
+      repeating-linear-gradient(0deg, rgba(60,55,40,0.05) 0px, rgba(60,55,40,0.05) 1px, transparent 1px, transparent 140px);
+    mix-blend-mode:multiply;
+  }
+
+  #hud{
+    position:absolute; top:0; left:0; width:100%; z-index:10;
+    display:flex; justify-content:space-between; align-items:flex-start;
+    padding:clamp(6px,2vw,14px) clamp(6px,2vw,18px); pointer-events:none;
+  }
+  .panel{
+    background:rgba(219,213,189,0.88);
+    border:2px solid var(--ink-soft);
+    box-shadow: inset 0 0 0 1px rgba(43,42,34,0.25), 2px 2px 0 rgba(43,42,34,0.15);
+    padding:clamp(4px,1.4vw,8px) clamp(6px,1.8vw,12px);
+    pointer-events:auto;
+  }
+  .stamp{
+    font-weight:bold; letter-spacing:clamp(0.5px,0.4vw,2px); font-size:clamp(8px,2.3vw,11px); color:var(--olive);
+    border:1.5px solid var(--olive); padding:2px clamp(3px,1vw,6px); display:inline-block;
+    transform:rotate(-2deg); text-transform:uppercase;
+  }
+  #gameTitle{
+    position:absolute; top:10px; left:50%; transform:translateX(-50%) rotate(-1deg);
+    z-index:10; pointer-events:none; text-align:center;
+    max-width:clamp(110px, 42vw, 640px);
+  }
+  #gameTitle .name{
+    font-weight:bold; letter-spacing:clamp(1px, 0.9vw, 8px); font-size:clamp(10px, 2.3vw, 26px);
+    color:var(--olive);
+    border:2px solid var(--ink); border-top:none; border-bottom:none;
+    padding:2px clamp(6px, 1.8vw, 22px); text-transform:uppercase;
+    background:rgba(219,213,189,0.75);
+    white-space:normal; overflow-wrap:break-word; line-height:1.15;
+    display:block; max-width:100%; box-sizing:border-box;
+  }
+  #gameTitle .rule{ height:2px; background:var(--ink); }
+  @media (max-width:600px){
+    #gameTitle{ max-width:clamp(80px, 26vw, 640px); top:6px; }
+    #gameTitle .name{ font-size:clamp(6px,1.6vw,26px); letter-spacing:clamp(0.3px,0.4vw,8px); padding:1px clamp(3px,1vw,22px); }
+  }
+  #killFeed{position:absolute; top:clamp(46px,7.5vh,68px); left:50%; transform:translateX(-50%); z-index:11; width:min(54vw,420px); max-width:calc(100% - 40px); background:rgba(219,213,189,0.82); border:1px solid var(--ink-soft); box-shadow:1px 1px 0 rgba(43,42,34,0.18); padding:2px 7px; text-align:center; pointer-events:none; overflow:hidden; white-space:nowrap; font-size:clamp(7px,1.7vw,10px); letter-spacing:0.8px; color:var(--ink-soft); opacity:0.92; display:flex; align-items:baseline; justify-content:center; gap:6px;}
+  body.has-touch #killFeed{
+    max-width:calc(100% - 16px);
+    background:rgba(219,213,189,0.4);
+    border-color:rgba(74,70,54,0.3);
+    box-shadow:none;
+    backdrop-filter:blur(2px);
+    -webkit-backdrop-filter:blur(2px);
+  }
+  #killFeed .label{color:var(--red);font-weight:bold; flex:0 0 auto;}
+  #killFeedText{display:inline-block;min-width:4ch; overflow:hidden; text-overflow:ellipsis; flex:0 1 auto;}
+  #killFeedText.feed-in{animation:feedIn .28s ease-out;}
+  @keyframes feedIn{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
+  #muteBtn[aria-pressed="true"]{background:var(--red);}
+  #topLeft{ min-width:clamp(66px, 18vw, 150px); max-width:36vw; }
+  .commandHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
+  #topLeft .title{ font-size:clamp(8px,2.6vw,13px); font-weight:bold; letter-spacing:1px; margin-bottom:0;}
+  .rankInsignia{width:clamp(30px,8vw,42px);height:clamp(20px,5.3vw,28px);display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--ink);}
+  .rankInsignia svg{width:90%;height:90%;display:block;overflow:visible;}
+  .rankInsignia .rankFill{fill:currentColor;}
+  .rankInsignia .rankStroke{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
+  .rankInsignia .rankStar{fill:currentColor;}
+  .rankPip-plain{display:block;width:5px;height:5px;border:1px solid var(--ink-soft);border-radius:50%;opacity:.25;}
+  #topRight{ text-align:right; min-width:clamp(88px, 28vw, 200px); max-width:40vw; }
+  .row{ display:flex; align-items:center; gap:6px; margin:3px 0; font-size:clamp(8px,2.4vw,12px); }
+  .barOuter{
+    width:clamp(64px, 18vw, 150px); height:12px; background:var(--paper-shadow);
+    border:1px solid var(--ink-soft); position:relative; overflow:hidden;
+  }
+  .barInner{ height:100%; }
+  #healthBar{ background: linear-gradient(90deg, var(--red-bright), var(--red)); }
+  #arsenalBar{ background: linear-gradient(90deg, var(--olive-light), var(--olive)); }
+  #regenNote{ font-size:clamp(7px,2vw,9px); color:var(--ink-soft); letter-spacing:0.5px; }
+
+  #bottomBar{
+    position:absolute; bottom:0; left:0; width:100%; z-index:10;
+    display:flex; justify-content:center; align-items:center; gap:clamp(6px,2.4vw,20px);
+    padding:clamp(6px,2vw,12px); pointer-events:none;
+  }
+  #deployPanel{
+    display:flex; align-items:center; gap:clamp(4px,1.6vw,14px); pointer-events:auto;
+  }
+  #deployPanel .label{ font-size:clamp(7px,2.2vw,11px); letter-spacing:clamp(0.3px,0.4vw,1px); white-space:nowrap; }
+  #sliderVal{
+    font-weight:bold; font-size:clamp(10px,2.8vw,15px); color:var(--red);
+    min-width:clamp(38px,11vw,70px); text-align:center;
+  }
+  #sliderWrap{ position:relative; width:clamp(90px, 38vw, 220px); }
+  input[type=range]{
+    -webkit-appearance:none; width:100%; height:6px; background:var(--paper-shadow);
+    border:1px solid var(--ink-soft); display:block;
+  }
+  input[type=range]::-webkit-slider-thumb{
+    -webkit-appearance:none; width:16px; height:20px; background:var(--olive);
+    border:1px solid var(--ink); cursor:pointer;
+  }
+  .rec-tick{
+    position:absolute; top:-3px; width:2px; height:12px; background:var(--red);
+    opacity:0; pointer-events:none; transition:opacity 0.15s ease, left 0.15s ease;
+  }
+  .rec-label{
+    position:absolute; top:-25px; transform:translateX(-50%); white-space:nowrap;
+    font-size:clamp(6px,1.6vw,8px); font-weight:bold; letter-spacing:0.4px; color:var(--red);
+    background:rgba(219,213,189,0.9); border:1px solid rgba(124,46,40,0.45); border-radius:2px;
+    padding:1px 4px;
+    opacity:0; pointer-events:none; transition:opacity 0.15s ease, left 0.15s ease;
+  }
+  #hint{
+    position:absolute; bottom:64px; left:0; width:100%; text-align:center;
+    font-size:10px; letter-spacing:1px; color:var(--ink-soft); z-index:10; pointer-events:none;
+  }
+
+  #banner{
+    position:absolute; top:38%; left:50%; transform:translate(-50%,-50%) rotate(-3deg);
+    z-index:20; text-align:center; display:none;
+  }
+  #banner .big{
+    font-size:40px; font-weight:bold; letter-spacing:4px; color:var(--red);
+    border:4px double var(--ink); padding:10px 30px; background:rgba(219,213,189,0.92);
+    box-shadow: 3px 3px 0 rgba(43,42,34,0.3);
+  }
+  #banner .small{ margin-top:8px; font-size:13px; letter-spacing:2px; color:var(--ink-soft); }
+
+  #eventBanner{
+    position:absolute; top:20%; left:50%; transform:translate(-50%,-50%) rotate(-2deg);
+    z-index:21; text-align:center; display:none; pointer-events:none;
+  }
+  #eventBanner .big{
+    font-size:clamp(20px,5vw,34px); font-weight:bold; letter-spacing:3px; color:var(--red-bright);
+    border:3px double var(--ink); padding:8px 22px; background:rgba(219,213,189,0.94);
+    box-shadow: 3px 3px 0 rgba(43,42,34,0.3);
+  }
+  #eventBanner .small{ margin-top:6px; font-size:clamp(9px,2vw,13px); letter-spacing:1.5px; color:var(--ink-soft); }
+
+  #eventStatus{
+    position:absolute; top:clamp(46px,7.5vh,68px); right:clamp(6px,2vw,18px); z-index:11;
+    display:none; text-align:right; pointer-events:none;
+  }
+  #eventStatus .stamp{ display:block; margin-bottom:3px; font-size:clamp(7px,1.8vw,10px); }
+
+  .overlay{
+    position:absolute; inset:0; z-index:30; display:flex; align-items:center; justify-content:center;
+    background:rgba(43,42,34,0.55);
+  }
+  .card{
+    background:var(--paper); border:3px solid var(--ink); padding:34px 44px;
+    max-width:480px; max-height:85vh; overflow-y:auto;
+    text-align:center; box-shadow:4px 4px 0 rgba(0,0,0,0.3);
+  }
+  .card h1{ font-size:26px; letter-spacing:3px; margin:0 0 6px 0; color:var(--olive); }
+  .card h2{ font-size:14px; letter-spacing:2px; margin:0 0 18px 0; color:var(--red); }
+  .card p{ font-size:12px; line-height:1.7; color:var(--ink-soft); text-align:left; }
+  .card button{
+    margin-top:18px; font-family:inherit; font-size:14px; letter-spacing:2px;
+    padding:10px 26px; background:var(--olive); color:var(--paper); border:2px solid var(--ink);
+    cursor:pointer; box-shadow:2px 2px 0 rgba(0,0,0,0.3);
+  }
+  .card button:hover{ background:var(--olive-light); }
+  .scoreLine{ font-size:13px; margin:4px 0; letter-spacing:1px; }
+  .rankBlock{margin:8px 0 12px;padding:8px 12px;border-top:2px solid var(--ink);border-bottom:2px solid var(--ink);background:rgba(199,191,162,0.35);}
+  .rankKicker{font-size:9px;letter-spacing:2px;color:var(--ink-soft);}
+  .rankTitle{margin-top:2px;font-size:clamp(16px,4.8vw,27px);line-height:1.15;letter-spacing:clamp(1px,0.5vw,4px);font-weight:bold;color:var(--olive);text-transform:uppercase;}
+
+  #commentsText{
+    width:100%; font-family:inherit; font-size:13px; padding:8px;
+    border:2px solid var(--ink); background:var(--paper-dark); color:var(--ink);
+    resize:vertical; box-sizing:border-box; margin-top:4px;
+  }
+  #commentsCount{ text-align:right; font-size:10px; color:var(--ink-soft); margin-top:4px; }
+  .cardBtnRow{ display:flex; gap:10px; justify-content:center; margin-top:14px; }
+  .cardBtnRow button{
+    font-family:inherit; font-size:13px; letter-spacing:1px;
+    padding:8px 20px; border:2px solid var(--ink); cursor:pointer;
+    box-shadow:2px 2px 0 rgba(0,0,0,0.3);
+  }
+  #commentsSendBtn{ background:var(--olive); color:var(--paper); }
+  #commentsSendBtn:hover{ background:var(--olive-light); }
+  #commentsCancelBtn{ background:var(--paper-shadow); color:var(--ink); }
+  #commentsCancelBtn:hover{ background:var(--paper-dark); }
+
+  #damageFlash, #comboFlash, #empFlash{
+    position:absolute; inset:0; z-index:25; pointer-events:none; opacity:0;
+  }
+  #damageFlash{ background:radial-gradient(ellipse at center, rgba(124,46,40,0.05) 40%, rgba(124,46,40,0.55) 100%); }
+  #comboFlash{ background:radial-gradient(ellipse at center, rgba(90,105,66,0.04) 40%, rgba(90,105,66,0.45) 100%); }
+  #empFlash{ background:radial-gradient(ellipse at center, rgba(120,150,165,0.10) 30%, rgba(120,150,165,0.75) 100%); }
+
+  #comboPopup{
+    position:absolute; top:30%; left:50%; transform:translate(-50%,-50%) scale(0.8) rotate(-2deg);
+    z-index:26; opacity:0; pointer-events:none; text-align:center;
+  }
+  #comboPopup .txt{
+    font-weight:bold; letter-spacing:2px; font-size:20px; color:var(--olive);
+    border:2px solid var(--olive); background:rgba(219,213,189,0.9); padding:8px 20px;
+    box-shadow:2px 2px 0 rgba(43,42,34,0.3);
+  }
+
+  #pauseBtn{
+    font-family:inherit; font-weight:bold;
+    background:var(--olive); color:var(--paper); border:1.5px solid var(--ink);
+  }
+  #pauseBtn:hover{ background:var(--olive-light); }
+  #hudBtnRow{ display:flex; gap:5px; margin-top:6px; flex-wrap:nowrap; }
+  .iconBtn{
+    font-family:inherit; font-size:12px; font-weight:bold;
+    background:var(--steel); color:var(--paper); border:1.5px solid var(--ink);
+    width:24px; height:24px; border-radius:50%; cursor:pointer; padding:0;
+    box-shadow:1.5px 1.5px 0 rgba(0,0,0,0.25);
+    display:flex; align-items:center; justify-content:center; flex:0 0 auto;
+  }
+  .iconBtn:hover{ background:var(--olive-light); }
+  @media (max-width:600px){ #topLeft{max-width:40vw;} }
+
+  #bestBadge{
+    z-index:10; pointer-events:none; align-self:center;
+  }
+
+  #pauseOverlay{
+    position:absolute; inset:0; z-index:24; display:none; align-items:center; justify-content:center;
+    background:rgba(43,42,34,0.45); pointer-events:none; /* passive dimmer only — let taps reach the Resume button underneath */
+  }
+  #pauseOverlay .txt{
+    font-weight:bold; font-size:34px; letter-spacing:6px; color:var(--olive);
+    border:3px double var(--ink); background:rgba(219,213,189,0.92); padding:14px 34px;
+    box-shadow:3px 3px 0 rgba(0,0,0,0.3);
+  }
+
+  #touchControls{
+    position:absolute; bottom:clamp(50px,7vh,76px); left:0; width:100%; z-index:15;
+    display:none; justify-content:space-between; align-items:flex-end;
+    padding:0 clamp(10px,4vw,22px); pointer-events:none;
+  }
+  body.has-touch #touchControls{ display:flex; }
+  body.has-touch #hint{ display:none; }
+  #tcMove{ display:flex; flex-direction:row; gap:clamp(6px,3vw,12px); pointer-events:auto; }
+  .touch-btn{
+    pointer-events:auto; -webkit-tap-highlight-color:transparent; user-select:none;
+    width:clamp(38px,11vw,58px); height:clamp(38px,11vw,58px); border-radius:50%;
+    background:rgba(69,79,52,0.88); color:var(--paper);
+    border:2px solid var(--ink); box-shadow:2px 2px 0 rgba(0,0,0,0.3);
+    font-size:clamp(13px,4vw,20px); display:flex; align-items:center; justify-content:center;
+    font-family:inherit;
+  }
+  #tcFire{
+    width:clamp(54px,15vw,88px); height:clamp(54px,15vw,88px); border-radius:50%;
+    background:rgba(124,46,40,0.88); font-size:clamp(8px,2.4vw,11px); font-weight:bold; letter-spacing:1px;
+  }
+  .touch-btn:active{ filter:brightness(1.2); }
+</style>
+</head>
+
+<body>
+<!-- ============================================================
+     GOOGLE AD SLOT (thin top banner)
+     Replace ca-pub-XXXXXXXXXXXXXXXX and data-ad-slot below with
+     your real AdSense publisher ID and ad unit ID once your
+     account is approved. Until then this is inert placeholder
+     markup — no ad script is actually loaded from Google.
+     ============================================================ -->
+<!--
+<script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX" crossorigin="anonymous"></script>
+-->
+<div id="adTop">
+  <ins class="adsbygoogle"
+       style="display:block; width:100%; height:100%;"
+       data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
+       data-ad-slot="XXXXXXXXXX"
+       data-ad-format="horizontal"
+       data-full-width-responsive="true"></ins>
+</div>
+<!-- <script>(adsbygoogle = window.adsbygoogle || []).push({});</script> -->
+<div id="adGap"></div>
+
+<div id="wrap">
+  <canvas id="game"></canvas>
+  <div id="foldlines"></div>
+  <div id="mapFrame"><span class="c-tl"></span><span class="c-tr"></span><span class="c-bl"></span><span class="c-br"></span></div>
+  <div id="vignette"></div>
+  <div id="heartbeatVignette"></div>
+  <div id="healthWarningBorder"></div>
+  <div id="arsenalWarningBorder"></div>
+  <div id="damageFlash"></div>
+  <div id="comboFlash"></div>
+  <div id="empFlash"></div>
+  <div id="comboPopup"><div class="txt" id="comboPopupText">EFFICIENT +0</div></div>
+  <div id="pauseOverlay"><div class="txt">PAUSED</div></div>
+
+  <div id="hud">
+    <div id="gameTitle">
+      <div class="rule"></div>
+      <div class="name">ATTRITABLE SWARM</div>
+      <div class="rule"></div>
+    </div>
+    <div id="killFeed"><span class="label">LIVE FEED//</span><span id="killFeedText">AWAITING CONTACT</span></div>
+    <div id="topLeft" class="panel">
+      <div class="commandHead">
+        <div class="title">SWARM COMMAND</div>
+        <div id="rankInsignia" class="rankInsignia" aria-label="SECOND LIEUTENANT rank insignia" title="SECOND LIEUTENANT"><span class="rankPip-plain"></span></div>
+      </div>
+      <span class="stamp" id="levelStamp">LEVEL 01</span>
+      <span class="stamp" id="dailyBadge" style="display:none; margin-left:4px;">DAILY OP</span>
+      <div class="row" style="justify-content:space-between;"><span>SCORE: <b id="scoreVal">0</b></span><span>BEST: <b id="highVal">0</b></span></div>
+      <div id="hudBtnRow">
+        <button id="pauseBtn" class="iconBtn" title="Pause">&#10073;&#10073;</button>
+        <button id="helpBtn" class="iconBtn" title="How to play">?</button>
+        <button id="commentsBtn" class="iconBtn" title="Comments">&#9993;</button>
+        <button id="muteBtn" class="iconBtn" title="Mute sound" aria-label="Mute sound" aria-pressed="false">&#128266;</button>
+      </div>
+    </div>
+    <div id="topRight" class="panel">
+      <div class="row" style="justify-content:flex-end;">
+        <span>HEALTH</span>
+        <div class="barOuter"><div class="barInner" id="healthBar" style="width:100%"></div></div>
+      </div>
+      <div class="row" style="justify-content:flex-end;">
+        <span>ARSENAL</span>
+        <div class="barOuter"><div class="barInner" id="arsenalBar" style="width:100%"></div></div>
+      </div>
+      <div class="row" style="justify-content:flex-end;"><b id="arsenalText">2500 / 2500</b></div>
+      <div id="regenNote">REGEN: +0/s</div>
+    </div>
+  </div>
+
+  <div id="hint">MOVE: &larr;/&rarr; OR A/D &nbsp;&mdash;&nbsp; SPACE TO RELEASE THE SWARM ON THE TARGET IN YOUR LANE</div>
+
+  <div id="touchControls">
+    <div id="tcMove">
+      <button id="tcLeft" class="touch-btn">&#9664;</button>
+      <button id="tcRight" class="touch-btn">&#9654;</button>
+    </div>
+    <button id="tcFire" class="touch-btn">RELEASE</button>
+  </div>
+
+  <div id="bottomBar">
+    <div id="bestBadge" class="stamp">BEST <span id="bestBadgeVal">0</span></div>
+    <div id="deployPanel" class="panel">
+      <span class="label">DRONE RELEASE</span>
+      <div id="sliderWrap">
+        <input type="range" id="slider" min="1" max="100" value="50">
+        <div id="recTick" class="rec-tick"></div>
+        <div id="recLabel" class="rec-label"></div>
+      </div>
+      <span id="sliderVal">50 UNITS</span>
+    </div>
+  </div>
+
+  <div id="banner">
+    <div class="big" id="bannerBig">LEVEL 01 COMPLETE</div>
+    <div class="small" id="bannerSmall">PREPARING NEXT ENGAGEMENT...</div>
+  </div>
+
+  <div id="eventBanner">
+    <div class="big" id="eventBannerBig">INCOMING ARTILLERY</div>
+    <div class="small" id="eventBannerSmall">COUNTER-BATTERY WARNING</div>
+  </div>
+  <div id="eventStatus"></div>
+
+  <div class="overlay" id="startOverlay">
+    <div class="card">
+      <h1>SWARM COMMAND</h1>
+      <h2>ATTRITABLE DRONE DOCTRINE &mdash; FIELD SIMULATION</h2>
+      <p>
+        Command a mobile drone carrier along the forward line. Select swarm size with the slider,
+        then click a target to release your drones. Larger, hardened targets require more drones
+        and more time to neutralize. Uncleared targets will strike back before your swarm finishes the job.
+        <br><br>
+        Your arsenal is finite and slowly replenishes &mdash; the longer you hold position, the faster it recovers.
+        Deplete it entirely and the mission ends. Survive as many levels as you can.
+      </p>
+      <label for="callsignInput" style="display:block; font-size:11px; letter-spacing:1px; color:var(--ink-soft); margin-top:6px;">CALLSIGN</label>
+      <input id="callsignInput" maxlength="16" placeholder="COMMANDER"
+             style="width:100%; font-family:inherit; font-size:14px; padding:7px; margin-top:4px;
+                    border:2px solid var(--ink); background:var(--paper-dark); color:var(--ink); box-sizing:border-box;">
+      <button id="startBtn">BEGIN MISSION</button>
+      <div class="cardBtnRow" style="margin-top:8px;">
+        <button id="dailyOpBtn" style="display:none;">DAILY OP</button>
+        <button id="motorPoolBtn" style="display:none;">MOTOR POOL</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="endOverlay" style="display:none;">
+    <div class="card">
+      <h1 id="endTitle">MISSION FAILED</h1>
+      <h2 id="endReason">ARSENAL DEPLETED</h2>
+      <div id="endNewBest" class="stamp" style="display:none; margin-bottom:8px;">NEW BEST SCORE</div>
+      <div class="rankBlock"><div class="rankKicker">FINAL COMMAND RANK</div><div id="endRank" class="rankTitle">PRIVATE</div></div>
+      <div class="scoreLine">LEVEL REACHED: <b id="endLevel">1</b></div>
+      <div class="scoreLine">FINAL SCORE: <b id="endScore">0</b></div>
+      <div class="scoreLine">BEST SCORE: <b id="endHigh">0</b></div>
+      <div class="scoreLine" id="endDailyBestRow" style="display:none;">DAILY BEST: <b id="endDailyBest">0</b></div>
+      <div class="scoreLine" id="endMetaEarnedRow" style="display:none;">SUPPLY POINTS EARNED: <b id="endMetaEarned">0</b></div>
+      <div id="aarSection" style="display:none; margin-top:10px; padding-top:10px; border-top:2px solid var(--ink); text-align:left;">
+        <div class="rankKicker" style="text-align:center; margin-bottom:6px;">AFTER ACTION REPORT</div>
+        <div class="scoreLine">TOTAL KILLS: <b id="aarKills">0</b></div>
+        <div class="scoreLine">DRONES LAUNCHED: <b id="aarDrones">0</b></div>
+        <div class="scoreLine">BEST EFFICIENCY STREAK: <b id="aarStreak">0</b></div>
+        <div class="scoreLine">TIME IN FIELD: <b id="aarTime">0:00</b></div>
+        <div class="scoreLine" id="aarBreakdown">KILLS BY TYPE: <b id="aarByType">—</b></div>
+      </div>
+      <div class="cardBtnRow">
+        <button id="restartBtn">RESTART MISSION</button>
+        <button id="shareBtn">SHARE SCORE</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="overlay" id="motorPoolOverlay" style="display:none;">
+    <div class="card">
+      <h1>MOTOR POOL</h1>
+      <h2>PERMANENT UPGRADES</h2>
+      <p style="text-align:center;">SUPPLY POINTS: <b id="motorPoolCurrency">0</b></p>
+      <div id="motorPoolList"></div>
+      <button id="motorPoolCloseBtn" style="margin-top:14px;">CLOSE</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="shareFallbackOverlay" style="display:none;">
+    <div class="card">
+      <h1>SHARE</h1>
+      <h2>POST YOUR SCORE</h2>
+      <div class="cardBtnRow" style="flex-wrap:wrap;">
+        <button id="shareXBtn">X / TWITTER</button>
+        <button id="shareFbBtn">FACEBOOK</button>
+        <button id="shareCopyBtn">COPY TEXT</button>
+        <button id="shareDownloadBtn">DOWNLOAD IMAGE</button>
+      </div>
+      <button id="shareCloseBtn" style="margin-top:14px;">CLOSE</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="helpOverlay" style="display:none;">
+    <div class="card">
+      <h1>FIELD MANUAL</h1>
+      <h2>QUICK REFERENCE</h2>
+      <p>
+        <b>MOVE:</b> &larr;/&rarr; or A/D (touch: the left/right buttons) &mdash; shifts your carrier between lanes.<br>
+        <b>FIRE:</b> Space bar, tap/click a target, or the touch RELEASE button &mdash; releases the swarm on whatever's in your lane.<br>
+        <b>DRONE RELEASE slider:</b> sets how many drones go out per release. Watch the red "NEED" tick above the slider &mdash; it shows the exact count left to finish off your hovered/current target, so you can avoid overkill.
+        <br><br>
+        <b>ARSENAL</b> is finite and regenerates faster the longer you hold off deploying. Hit zero and the mission ends.
+        <br>
+        <b>TARGETS</b> can't be scared off &mdash; only drones remove them. Each has a spin-up delay before it starts firing back, then deals ongoing damage until destroyed. Threat rises: soldier &lt; vehicle &lt; vehicle column &lt; tank &lt; weapons plant, with an attack helicopter boss on milestone levels.
+        <br><br>
+        A clean kill with little wasted overkill earns an <b>EFFICIENCY bonus</b> and builds a streak multiplier. Clearing a level heals some health and raises your arsenal cap &mdash; the bonus shrinks each level.
+        <br><br>
+        <b>SUPPLY CRATES</b> occasionally telegraph in (olive/gold ring, no threat) &mdash; fire on it, tap/click it, or just drive your carrier into that lane to collect. They roll an arsenal refill, a health boost, or (at higher levels) an EMP that stuns every active target's weapons. Ignore one too long and it disappears.
+        <br><br>
+        <b>P</b> pauses the mission at any time.
+      </p>
+      <button id="closeHelpBtn">RESUME MISSION</button>
+    </div>
+  </div>
+
+  <div class="overlay" id="commentsOverlay" style="display:none;">
+    <div class="card">
+      <h1>FIELD REPORT</h1>
+      <h2>COMMENTS &amp; QUESTIONS</h2>
+      <p style="text-align:center;">Bugs, feedback, or questions about the gameplay &mdash; sent straight to the dev.</p>
+      <textarea id="commentsText" maxlength="500" rows="6" placeholder="Type your comment here..."></textarea>
+      <div id="commentsCount">0 / 500</div>
+      <div class="cardBtnRow">
+        <button id="commentsCancelBtn">CANCEL</button>
+        <button id="commentsSendBtn">SEND</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // ---------- SAFE LOCAL STORAGE ----------
+  // Storage can be unavailable in private/restricted/embedded browser contexts.
+  // Keep the game playable even when persistence is denied.
+  const storage = {
+    get(key, fallback=''){
+      try {
+        const value = window.localStorage.getItem(key);
+        return value === null ? fallback : value;
+      } catch(e) { return fallback; }
+    },
+    set(key, value){
+      try { window.localStorage.setItem(key, String(value)); } catch(e) {}
+    }
+  };
+
+  // ---------- FEATURE TOGGLES ----------
+  // Flip any of these to `true` to turn the feature back on. Each one is fully
+  // wired — this is the single switch, no other code changes needed.
+  const FEATURES = {
+    DAILY_CHALLENGE: false,     // seeded daily-op mode with its own leaderboard-style best score
+    META_PROGRESSION: false,    // Motor Pool: persistent currency + permanent starting-stat upgrades
+    TERRAIN_CONTOURS: false,    // topographic contour lines drawn over the field
+    AFTER_ACTION_REPORT: true, // expanded end-of-run stat breakdown on the debrief screen
+    RANDOM_EVENTS: true,       // occasional battlefield events (artillery, jamming, HVT, swarm window)
+    SPAWN_TELEGRAPHS: true     // dashed warning rings / "INCOMING" text ahead of targets, crates, and HVTs
+  };
+
+  // ---------- CANVAS SETUP ----------
+  const canvas = document.getElementById('game');
+  const wrapEl = document.getElementById('wrap');
+  const ctx = canvas.getContext('2d');
+  let W=0,H=0;
+  function resize(){
+    // size to the #wrap container, not the raw window — #wrap is whatever's
+    // left after the ad banner (and its gap) at the top of the page, so the
+    // game never overlaps or gets pushed off-screen by the ad.
+    const rect = wrapEl.getBoundingClientRect();
+    W = rect.width; H = rect.height;
+    canvas.width = W; canvas.height = H;
+  }
+  window.addEventListener('resize', resize);
+  resize();
+
+  // ---------- SOUND (synthesized, no audio files) ----------
+  const SFX = (function(){
+    let ac = null;
+    let muted = storage.get('swarmMuted','0') === '1';
+    function ensure(){
+      if(!ac){
+        try{ ac = new (window.AudioContext||window.webkitAudioContext)(); }catch(e){ return null; }
+      }
+      if(ac && ac.state==='suspended') ac.resume();
+      return ac;
+    }
+    function tone(freq, dur, type, gainVal, glideTo){
+      if(muted) return;
+      const a = ensure(); if(!a) return;
+      const osc = a.createOscillator(), gain = a.createGain();
+      osc.type = type||'sine';
+      osc.frequency.setValueAtTime(freq, a.currentTime);
+      if(glideTo) osc.frequency.exponentialRampToValueAtTime(Math.max(1,glideTo), a.currentTime+dur);
+      gain.gain.setValueAtTime(gainVal!==undefined?gainVal:0.15, a.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, a.currentTime+dur);
+      osc.connect(gain); gain.connect(a.destination);
+      osc.start(); osc.stop(a.currentTime+dur);
+    }
+    function noise(dur, gainVal, filterFreq){
+      if(muted) return;
+      const a = ensure(); if(!a) return;
+      const size = Math.max(1, Math.floor(a.sampleRate*dur));
+      const buffer = a.createBuffer(1, size, a.sampleRate);
+      const data = buffer.getChannelData(0);
+      for(let i=0;i<size;i++) data[i] = (Math.random()*2-1) * (1-i/size);
+      const src = a.createBufferSource(); src.buffer = buffer;
+      const filter = a.createBiquadFilter(); filter.type='lowpass'; filter.frequency.value = filterFreq||1200;
+      const gain = a.createGain();
+      gain.gain.setValueAtTime(gainVal!==undefined?gainVal:0.2, a.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.001, a.currentTime+dur);
+      src.connect(filter); filter.connect(gain); gain.connect(a.destination);
+      src.start();
+    }
+    return {
+      unlock(){ if(!muted) ensure(); },
+      isMuted(){ return muted; },
+      setMuted(value){ muted=!!value; storage.set('swarmMuted', muted?'1':'0'); },
+      launch(){ tone(300,0.16,'triangle',0.07,680); },
+      impact(){ noise(0.14,0.20,900); tone(130,0.10,'square',0.05,55); },
+      kill(){ tone(520,0.09,'square',0.10,880); setTimeout(()=>tone(880,0.12,'square',0.08),70); },
+      damage(){ tone(180,0.26,'sawtooth',0.13,90); },
+      levelUp(){ [523,659,784,1047].forEach((f,i)=>setTimeout(()=>tone(f,0.18,'triangle',0.10),i*90)); },
+      combo(){ tone(660,0.08,'sine',0.09,1100); },
+      click(){ tone(300,0.05,'square',0.06); },
+      heartbeat(){ tone(58,0.09,'sine',0.09,48); },
+      alarm(){ tone(760,0.06,'square',0.09,1000); setTimeout(()=>tone(760,0.06,'square',0.09,1000),140); },
+      arsenalPickup(){ tone(500,0.10,'triangle',0.09,900); setTimeout(()=>tone(750,0.12,'triangle',0.08,1200),80); },
+      medicPickup(){ tone(440,0.14,'sine',0.10,880); setTimeout(()=>tone(660,0.10,'sine',0.08,990),90); },
+      empBlast(){ noise(0.30,0.25,600); tone(200,0.25,'sawtooth',0.12,50); }
+    };
+  })();
+
+  // ---------- NOISE / GRAIN TEXTURE ----------
+  const noiseCanvas = document.createElement('canvas');
+  noiseCanvas.width = 160; noiseCanvas.height = 160;
+  (function buildNoise(){
+    const nctx = noiseCanvas.getContext('2d');
+    const img = nctx.createImageData(160,160);
+    for(let i=0;i<img.data.length;i+=4){
+      const v = Math.random();
+      let a = 0;
+      if(v>0.965) a = 40 + Math.random()*40;      // dark ink specks
+      else if(v<0.02) a = 30 + Math.random()*20;   // light specks
+      img.data[i]=40; img.data[i+1]=36; img.data[i+2]=26; img.data[i+3]=a;
+    }
+    nctx.putImageData(img,0,0);
+  })();
+  const noisePattern = ctx.createPattern(noiseCanvas,'repeat');
+
+  // ---------- VERTICAL ARCADE FIELD ----------
+  // Lanes (row) run left-to-right across the screen; depth (col) runs straight up
+  // from the player's baseline near the bottom to the spawn line near the top.
+  const LANES = 7;
+  // Swappable RNG: normal play uses Math.random(); Daily Challenge swaps this
+  // for a date-seeded mulberry32 so every player sees the same level layout.
+  // Only gameplay-defining rolls (what spawns, which lane, crate rewards) route
+  // through this — cosmetic jitter (particles, explosions, texture) stays on
+  // Math.random() since it doesn't need to be reproducible.
+  let rand = Math.random;
+  let terrainDecor = [];
+  let levelDebris = [];
+  let smokePlumes = [];
+  let ruinSilhouetteFar = [];
+  let ruinSilhouetteNear = [];
+  const hasTouch = ('ontouchstart' in window) || (navigator.maxTouchPoints>0);
+  if(hasTouch) document.body.classList.add('has-touch');
+  let SCALE = 1.5;
+  let marginX, baseY, laneSpacing, colSpacing, fieldTop;
+  function computeLayout(){
+    // Measure the actual on-screen HUD elements instead of guessing fixed margins,
+    // so the field never draws underneath the panels/slider/touch controls at any
+    // screen size, font scale, or with touch controls shown or hidden. All rects
+    // are converted from viewport-relative to #wrap-relative, since #wrap may now
+    // be pushed down by a top ad banner rather than starting at the page's very top.
+    const wrapTop = wrapEl.getBoundingClientRect().top;
+
+    // tighter breathing room on touch devices — the HUD chrome already scales
+    // down via clamp() at small widths, so it doesn't need as much clearance
+    const topPad = hasTouch ? 26 : 50;
+    const bottomPad = hasTouch ? 6 : 10;
+    const sidePad = hasTouch ? 20 : 60;
+
+    let topMargin = 90;
+    const topLeftEl = document.getElementById('topLeft');
+    const topRightEl = document.getElementById('topRight');
+    const titleEl = document.getElementById('gameTitle');
+    if(topLeftEl && topRightEl){
+      const lB = topLeftEl.getBoundingClientRect().bottom - wrapTop;
+      const rB = topRightEl.getBoundingClientRect().bottom - wrapTop;
+      const tB = titleEl ? titleEl.getBoundingClientRect().bottom - wrapTop : 0;
+      topMargin = Math.max(lB, rB, tB) + topPad;
+    }
+
+    let bottomMargin = 170;
+    const bottomBarEl = document.getElementById('bottomBar');
+    const touchControlsEl = document.getElementById('touchControls');
+    if(bottomBarEl){
+      bottomMargin = (H - (bottomBarEl.getBoundingClientRect().top - wrapTop)) + bottomPad;
+      if(hasTouch && touchControlsEl){
+        bottomMargin = Math.max(bottomMargin, (H - (touchControlsEl.getBoundingClientRect().top - wrapTop)) + bottomPad);
+      }
+    }
+
+    fieldTop = topMargin;
+    const availH = Math.max(150, H - topMargin - bottomMargin);
+    colSpacing = availH/10;
+    baseY = H - bottomMargin;
+    laneSpacing = Math.min(130, (W-sidePad)/LANES);
+    marginX = (W - laneSpacing*LANES)/2;
+    // sprites read bigger relative to lane width on touch — a little visual
+    // overflow between lanes is fine and reads as "bigger", not "broken"
+    SCALE = Math.max(hasTouch ? 1.05 : 0.85, Math.min(1.5, laneSpacing/55));
+
+    // the kill feed floats over the skyline band — below the HUD panels
+    // (fieldTop already clears them) but above where the lane bands actually
+    // start, instead of squeezing into the HUD row and overlapping the
+    // Swarm Command / health-arsenal panels
+    const killFeedEl = document.getElementById('killFeed');
+    if(killFeedEl){
+      killFeedEl.style.top = Math.max(4, fieldTop-(hasTouch?20:28))+'px';
+    }
+
+    buildTerrainDecor();
+  }
+  computeLayout();
+  window.addEventListener('resize', computeLayout);
+
+  function toScreen(col, row){
+    return {
+      x: marginX + (row+0.5)*laneSpacing,
+      y: baseY - col*colSpacing
+    };
+  }
+
+  // ---------- TERRAIN DRESSING ----------
+  // Deterministic (seeded) so the battlefield's scars stay put across frames
+  // and levels instead of re-rolling every draw — regenerated only on resize.
+  function mulberry32(seed){
+    return function(){
+      seed |= 0; seed = seed + 0x6D2B79F5 | 0;
+      let t = Math.imul(seed ^ seed>>>15, 1|seed);
+      t = t + Math.imul(t ^ t>>>7, 61|t) ^ t;
+      return ((t ^ t>>>14) >>> 0) / 4294967296;
+    };
+  }
+  function buildTerrainDecor(){
+    const rand = mulberry32(20260906); // fixed seed — a stable, pre-set battlefield
+    terrainDecor = [];
+    for(let row=0; row<LANES; row++){
+      const count = rand()<0.5 ? 1 : 2;
+      const kinds = ['sandbags','shards','beam','tracks','crater','metaldebris','commswreck','vehiclepart','tarp','fuelcan'];
+      for(let i=0;i<count;i++){
+        terrainDecor.push({
+          row,
+          col: 0.7 + rand()*4.6,     // stays well clear of the col 7-9.5 spawn band
+          jitterX: rand()*0.5-0.25,
+          kind: kinds[Math.floor(rand()*kinds.length)],
+          variant: Math.floor(rand()*4),
+          rot: rand()*Math.PI
+        });
+      }
+    }
+
+    // battle debris that quietly accumulates as the run goes on — a fixed pool
+    // generated once from its own seed, each piece tagged with the level it
+    // first appears at, so what's visible only ever grows, never re-shuffles.
+    // Barely noticeable a few levels in; by level 30 the whole board is worn.
+    const rand2 = mulberry32(20260906+777);
+    levelDebris = [];
+    const totalDebrisPieces = 90;
+    for(let i=0;i<totalDebrisPieces;i++){
+      const kinds = ['sandbags','shards','beam','crater','metaldebris','commswreck','vehiclepart','tarp','fuelcan'];
+      levelDebris.push({
+        row: Math.floor(rand2()*LANES),
+        col: 0.6 + rand2()*4.9,
+        jitterX: rand2()*0.6-0.3,
+        kind: kinds[Math.floor(rand2()*kinds.length)],
+        variant: Math.floor(rand2()*4),
+        rot: rand2()*Math.PI,
+        revealLevel: 2 + Math.floor(rand2()*29) // spreads reveals across levels 2-30
+      });
+    }
+
+    smokePlumes = [0.14,0.5,0.82].map(fx=>({ fx, drift: 0.6+rand()*0.8, phase: rand()*Math.PI*2 }));
+
+    // two skyline layers at different "distances" — far is smaller, denser,
+    // and more washed out; near is bigger, sparser, and darker. Same shared
+    // horizon baseline, but the size/tone/parallax differences read as depth.
+    ruinSilhouetteFar = [];
+    let xf = -40;
+    while(xf < W+80){
+      const w = 16+rand()*30;
+      ruinSilhouetteFar.push({ x: xf, w, h: 5+rand()*14 });
+      xf += w + rand()*10;
+    }
+    ruinSilhouetteNear = [];
+    let xn = -50;
+    while(xn < W+100){
+      const w = 34+rand()*84;
+      ruinSilhouetteNear.push({ x: xn, w, h: 12+rand()*40 });
+      xn += w + rand()*26;
+    }
+  }
+
+  function drawHorizon(shakeDX, shakeDY){
+    const now = performance.now();
+    const skyGrad = ctx.createLinearGradient(0,0,0,fieldTop);
+    skyGrad.addColorStop(0, '#cfc7a8');
+    skyGrad.addColorStop(1, '#c7bfa2');
+    ctx.fillStyle = skyGrad;
+    ctx.fillRect(-30,-30,W+60,fieldTop+30);
+
+    // far skyline — barely shifts with shake (it's much further away), small,
+    // pale, and desaturated so it reads as sitting well behind everything else
+    ctx.save();
+    ctx.translate(-shakeDX*0.35, -shakeDY*0.35);
+    ctx.fillStyle = 'rgba(150,143,118,0.30)';
+    for(const b of ruinSilhouetteFar){
+      ctx.fillRect(b.x, fieldTop-b.h, b.w, b.h+2);
+    }
+    ctx.restore();
+
+    // atmospheric haze band sitting between the two layers — thickest right at
+    // the horizon, thinning going up, so the far layer looks like it's behind mist
+    const hazeBand = ctx.createLinearGradient(0, fieldTop-46, 0, fieldTop);
+    hazeBand.addColorStop(0, 'rgba(207,199,168,0)');
+    hazeBand.addColorStop(1, 'rgba(207,199,168,0.55)');
+    ctx.fillStyle = hazeBand;
+    ctx.fillRect(-30, fieldTop-46, W+60, 46);
+
+    // near skyline — closer, bigger, more shake, darker and higher-contrast
+    // so it visibly sits in front of the faded far layer
+    ctx.save();
+    ctx.translate(-shakeDX*0.7, -shakeDY*0.7);
+    ctx.fillStyle = 'rgba(74,70,54,0.34)';
+    for(const b of ruinSilhouetteNear){
+      ctx.fillRect(b.x, fieldTop-b.h, b.w, b.h+2);
+    }
+    ctx.fillStyle = 'rgba(43,42,34,0.18)';
+    for(const b of ruinSilhouetteNear){
+      if(b.w>55) ctx.fillRect(b.x+b.w*0.3, fieldTop-b.h-8, 4, 8); // odd broken spire
+    }
+    ctx.restore();
+
+    // slow drifting smoke columns rising off the skyline
+    for(const p of smokePlumes){
+      const sx = p.fx*W + Math.sin(now/2600 + p.phase)*14*p.drift;
+      ctx.save();
+      ctx.globalAlpha = 0.22;
+      const g = ctx.createRadialGradient(sx, fieldTop-30, 2, sx, fieldTop-60, 46);
+      g.addColorStop(0,'rgba(60,56,44,0.6)');
+      g.addColorStop(1,'rgba(60,56,44,0)');
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.ellipse(sx, fieldTop-46, 30, 52, 0, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+    }
+
+    // horizon line
+    ctx.strokeStyle = 'rgba(43,42,34,0.22)';
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(-30, fieldTop); ctx.lineTo(W+30, fieldTop); ctx.stroke();
+  }
+
+  // One sandbag emplacement, in one of three states: a neat stacked wall,
+  // a loose scattered handful, or a torn-open bag with sand spilled out.
+  function drawSandbagPiece(variant){
+    const fill = 'rgba(90,84,60,0.55)';
+    const edge = 'rgba(43,42,34,0.4)';
+    function bag(x,y,w,h,rot){
+      ctx.save();
+      ctx.translate(x,y); ctx.rotate(rot);
+      ctx.fillStyle = fill; ctx.strokeStyle = edge; ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.ellipse(0,0,w,h,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(43,42,34,0.3)'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(-w*0.55,0); ctx.lineTo(w*0.55,0); ctx.stroke();
+      ctx.restore();
+    }
+    if(variant===0){
+      // stacked wall — two rows, offset like real sandbag courses
+      bag(-7,2,4.2,2.6,0); bag(0,2,4.2,2.6,0); bag(7,2,4.2,2.6,0);
+      bag(-3.5,-1.6,4.2,2.6,0); bag(3.5,-1.6,4.2,2.6,0);
+    } else if(variant===1){
+      // scattered — loose, uneven rotations, not aligned
+      bag(-6,1,3.6,2.3,0.32); bag(2.2,-2,3.8,2.4,-0.5); bag(6,2.5,3.4,2.2,0.85);
+    } else {
+      // broken open — torn bag outline with sand spilled beside it
+      ctx.fillStyle = fill; ctx.strokeStyle = edge; ctx.lineWidth = 0.7;
+      ctx.beginPath();
+      ctx.moveTo(-6,-2); ctx.lineTo(-3,-3); ctx.lineTo(-1,-1.4); ctx.lineTo(-2,0.6);
+      ctx.lineTo(1,1.2); ctx.lineTo(0,2.6); ctx.lineTo(-5,2.2); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.fillStyle = 'rgba(150,140,105,0.4)';
+      ctx.beginPath(); ctx.moveTo(0.5,1.6); ctx.lineTo(7,1.8); ctx.lineTo(4.5,3.6); ctx.closePath(); ctx.fill();
+    }
+  }
+
+  // A small cluster of ragged shards — either splintered wood or broken glass.
+  function drawShardCluster(variant){
+    const isGlass = variant===0;
+    const fill = isGlass ? 'rgba(130,145,140,0.4)' : 'rgba(93,72,46,0.48)';
+    const edge = isGlass ? 'rgba(200,210,205,0.55)' : 'rgba(43,42,34,0.4)';
+    const shards = [
+      [[-7,-2],[-3,-4.2],[-1.2,-1],[-4.4,1.2]],
+      [[-1.5,-3.4],[3.2,-2.2],[2,1.4],[-1.2,0.2]],
+      [[2.4,-1.2],[5.6,-1],[4.4,2.2],[1,2]]
+    ];
+    shards.forEach(pts=>{
+      ctx.fillStyle = fill;
+      ctx.strokeStyle = edge; ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      pts.forEach(([x,y],i)=> i===0 ? ctx.moveTo(x,y) : ctx.lineTo(x,y));
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    });
+  }
+
+  // A bent iron I-beam or similar length of wreckage torn off a vehicle.
+  function drawBeamPiece(variant){
+    const len1 = 8+variant, len2 = 5+variant*0.6, bend = 0.45+variant*0.15;
+    const dx = len2*Math.cos(bend), dy = -len2*Math.sin(bend);
+    ctx.strokeStyle = 'rgba(58,48,38,0.55)'; ctx.lineWidth = 2.6;
+    ctx.beginPath(); ctx.moveTo(-len1,0); ctx.lineTo(0,0); ctx.lineTo(dx,dy); ctx.stroke();
+    // flange ticks at both ends and the bend, suggesting an I-beam cross-section
+    ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 1;
+    [[-len1,0],[0,0],[dx,dy]].forEach(([x,y])=>{
+      ctx.beginPath(); ctx.moveTo(x-1.3,y-1.3); ctx.lineTo(x+1.3,y+1.3); ctx.stroke();
+    });
+    // faint rust streak
+    ctx.strokeStyle = 'rgba(120,80,55,0.3)'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(-len1,0.6); ctx.lineTo(-1,0.6); ctx.stroke();
+  }
+
+  // An irregular blast crater — jagged broken rim and an uneven pit, never a clean circle.
+  function drawCraterPiece(variant){
+    const r = 6 + variant*0.8;
+    const points = 10;
+    ctx.fillStyle = 'rgba(43,42,34,0.32)';
+    ctx.strokeStyle = 'rgba(43,42,34,0.42)'; ctx.lineWidth = 0.8;
+    ctx.beginPath();
+    for(let i=0;i<points;i++){
+      const a = (i/points)*Math.PI*2;
+      const jag = (i%3===0) ? 0.55 : (i%2===0 ? 0.85 : 1.05); // uneven rim, not a smooth circle
+      const x = Math.cos(a)*r*jag, y = Math.sin(a)*r*jag*0.62;
+      if(i===0) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+    }
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // darker inner pit, off-center
+    ctx.fillStyle = 'rgba(33,31,25,0.4)';
+    ctx.beginPath(); ctx.ellipse(r*0.1,r*0.05,r*0.45,r*0.28,0,0,Math.PI*2); ctx.fill();
+    // pale dirt lip thrown up on one side
+    ctx.strokeStyle = 'rgba(150,140,105,0.3)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(0,0,r*0.95,Math.PI*1.1,Math.PI*1.6); ctx.stroke();
+  }
+
+  // Small metal battlefield litter: ammo box, spent shell casings, or a discarded magazine.
+  function drawMetalDebrisPiece(variant){
+    const darkCol = '#2b2a22';
+    if(variant===0){
+      // ammo box, lid line + carry handle
+      ctx.fillStyle = 'rgba(74,79,52,0.55)'; ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.7;
+      ctx.fillRect(-4,-2.6,8,4.6); ctx.strokeRect(-4,-2.6,8,4.6);
+      ctx.beginPath(); ctx.moveTo(-4,-0.6); ctx.lineTo(4,-0.6); ctx.stroke();
+      ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 0.9;
+      ctx.beginPath(); ctx.arc(0,-2.6,1.4,Math.PI,0); ctx.stroke();
+    } else if(variant===1){
+      // scattered spent shell casings — small tapered cylinders
+      ctx.fillStyle = 'rgba(150,130,70,0.45)'; ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 0.4;
+      [[-3,1,0.4],[0,-1,-0.3],[2.6,1.6,0.6],[-1,2.4,0.9]].forEach(([x,y,rot])=>{
+        ctx.save(); ctx.translate(x,y); ctx.rotate(rot);
+        ctx.fillRect(-0.5,-1.6,1,3.2); ctx.strokeRect(-0.5,-1.6,1,3.2);
+        ctx.restore();
+      });
+    } else {
+      // discarded curved magazine
+      ctx.fillStyle = 'rgba(58,65,40,0.55)'; ctx.strokeStyle = 'rgba(43,42,34,0.45)'; ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(-1.4,-3.6); ctx.quadraticCurveTo(2.4,-2,2.8,2.6); ctx.lineTo(0.6,2.6); ctx.quadraticCurveTo(0.2,-1.6,-1.4,-3.6);
+      ctx.closePath(); ctx.fill(); ctx.stroke();
+    }
+  }
+
+  // Broken communications gear or a discarded weapon: bent antenna, radio unit, or a snapped rifle.
+  function drawCommsWreckPiece(variant){
+    const darkCol = '#2b2a22';
+    if(variant===0){
+      // bent/broken antenna, snapped partway with a dangling tip
+      ctx.strokeStyle = 'rgba(43,42,34,0.55)'; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(0,3); ctx.lineTo(0.6,-3); ctx.lineTo(3.2,-4.4); ctx.stroke();
+      ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(3.2,-4.4); ctx.lineTo(4.6,-2.6); ctx.stroke(); // snapped dangling segment
+    } else if(variant===1){
+      // radio equipment: box body, dial, short stub antenna
+      ctx.fillStyle = 'rgba(58,58,52,0.5)'; ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.6;
+      ctx.fillRect(-2.6,-2.2,5.2,4.2); ctx.strokeRect(-2.6,-2.2,5.2,4.2);
+      ctx.strokeStyle = 'rgba(150,140,105,0.4)'; ctx.lineWidth = 0.4;
+      ctx.beginPath(); ctx.arc(-0.8,-0.2,0.7,0,Math.PI*2); ctx.stroke(); // dial
+      ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.7;
+      ctx.beginPath(); ctx.moveTo(1.8,-2.2); ctx.lineTo(2.6,-5); ctx.stroke(); // stub antenna
+    } else {
+      // broken rifle silhouette, lying at an angle with a snapped stock
+      ctx.save(); ctx.rotate(0.5);
+      ctx.strokeStyle = 'rgba(43,42,34,0.55)'; ctx.lineWidth = 1.1;
+      ctx.beginPath(); ctx.moveTo(-5,0); ctx.lineTo(4,0); ctx.stroke();
+      ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(-5.6,-0.8); ctx.lineTo(-4.6,1); ctx.stroke(); // snapped stock fragment
+      ctx.restore();
+    }
+  }
+
+  // Wreckage torn from a destroyed vehicle: bumper fragment, armor plate, broken wheel, or a track segment.
+  function drawVehiclePartPiece(variant){
+    const darkCol = '#2b2a22';
+    if(variant===0){
+      // bent bumper fragment
+      ctx.strokeStyle = 'rgba(58,58,52,0.55)'; ctx.lineWidth = 1.6;
+      ctx.beginPath(); ctx.moveTo(-4,1.6); ctx.quadraticCurveTo(0,-2.2,4,1); ctx.stroke();
+    } else if(variant===1){
+      // flat armor plate with bolt holes
+      ctx.save(); ctx.rotate(0.3);
+      ctx.fillStyle = 'rgba(74,79,66,0.5)'; ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.7;
+      ctx.fillRect(-3.6,-2,7.2,3); ctx.strokeRect(-3.6,-2,7.2,3);
+      ctx.fillStyle = 'rgba(43,42,34,0.6)';
+      ctx.beginPath(); ctx.arc(-2.4,-0.5,0.35,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(2.4,-0.5,0.35,0,Math.PI*2); ctx.fill();
+      ctx.restore();
+    } else if(variant===2){
+      // torn/broken wheel — a partial tire ring, not a full circle
+      ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(0,0,3.6,0.2*Math.PI,1.7*Math.PI); ctx.stroke();
+      ctx.strokeStyle = 'rgba(219,213,189,0.25)'; ctx.lineWidth = 0.4;
+      ctx.beginPath(); ctx.arc(0,0,1.6,0.2*Math.PI,1.7*Math.PI); ctx.stroke();
+    } else {
+      // short track segment — a few linked plates
+      ctx.strokeStyle = 'rgba(43,42,34,0.55)'; ctx.lineWidth = 0.7;
+      for(let i=0;i<4;i++){
+        ctx.strokeRect(-4+i*2, -1, 1.7, 2);
+      }
+      ctx.beginPath(); ctx.moveTo(-4,0); ctx.lineTo(4,0); ctx.stroke();
+    }
+  }
+
+  // Draped canvas tarp or bundled cover cloth.
+  function drawTarpPiece(variant){
+    ctx.fillStyle = 'rgba(90,84,68,0.5)'; ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 0.6;
+    ctx.beginPath();
+    if(variant%2===0){
+      ctx.moveTo(-6,1.5); ctx.quadraticCurveTo(-3,-2.4,0,-1.4); ctx.quadraticCurveTo(3,-2.6,6,1);
+      ctx.lineTo(6,2); ctx.lineTo(-6,2); ctx.closePath();
+    } else {
+      ctx.moveTo(-4,2); ctx.quadraticCurveTo(-3.5,-2.6,0,-2.8); ctx.quadraticCurveTo(3.5,-2.6,4,2); ctx.closePath();
+    }
+    ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(43,42,34,0.3)'; ctx.lineWidth = 0.4;
+    ctx.beginPath(); ctx.moveTo(-2,1.4); ctx.lineTo(-1.6,-1.6); ctx.moveTo(2,1.6); ctx.lineTo(1.8,-1.8); ctx.stroke();
+  }
+
+  // Dented military jerry can — handle, filler cap, faded stencil band.
+  function drawFuelCanPiece(variant){
+    ctx.save();
+    if(variant%2===1) ctx.rotate(1.4); // some knocked over on their side
+    ctx.fillStyle = 'rgba(74,79,58,0.55)'; ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.7;
+    ctx.fillRect(-2,-4,4,6.4); ctx.strokeRect(-2,-4,4,6.4);
+    ctx.fillStyle = 'rgba(43,42,34,0.6)';
+    ctx.fillRect(-0.8,-5,1.6,1.1); // filler cap
+    ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(-1.4,-2.4); ctx.lineTo(1.4,-2.4); ctx.stroke(); // faded stencil band
+    ctx.strokeStyle = 'rgba(43,42,34,0.55)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.arc(0,-3.6,1,Math.PI*1.1,Math.PI*1.9); ctx.stroke(); // carry handle
+    ctx.restore();
+  }
+
+  function drawDecorPiece(d){
+    const p = toScreen(d.col, d.row + 0.5 + d.jitterX);
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.rotate(d.rot*0.15);
+    ctx.scale(SCALE, SCALE);
+    ctx.globalAlpha = 0.42;
+    switch(d.kind){
+      case 'sandbags':    drawSandbagPiece(d.variant%3); break;
+      case 'shards':      drawShardCluster(d.variant%2); break;
+      case 'beam':        drawBeamPiece(d.variant%3); break;
+      case 'crater':      drawCraterPiece(d.variant); break;
+      case 'metaldebris': drawMetalDebrisPiece(d.variant%3); break;
+      case 'commswreck':  drawCommsWreckPiece(d.variant%3); break;
+      case 'vehiclepart': drawVehiclePartPiece(d.variant); break;
+      case 'tarp':        drawTarpPiece(d.variant); break;
+      case 'fuelcan':     drawFuelCanPiece(d.variant); break;
+      case 'tracks':
+        ctx.strokeStyle = 'rgba(43,42,34,0.3)'; ctx.lineWidth=2;
+        ctx.setLineDash([2,3]);
+        ctx.beginPath(); ctx.moveTo(-9,-9); ctx.lineTo(9,9); ctx.moveTo(-5,-9); ctx.lineTo(13,9); ctx.stroke();
+        ctx.setLineDash([]);
+        break;
+    }
+    ctx.restore();
+  }
+
+  function drawTerrainDecor(){
+    for(const d of terrainDecor) drawDecorPiece(d);
+    // battle debris that quietly accumulates level over level — only ever
+    // grows, never reshuffles, so each run feels a little more worn than the last
+    for(const d of levelDebris){
+      if(d.revealLevel <= state.level) drawDecorPiece(d);
+    }
+  }
+
+  function drawDustMotes(){
+    const now = performance.now();
+    ctx.save();
+    ctx.globalAlpha = 0.35;
+    ctx.fillStyle = 'rgba(74,70,54,0.6)';
+    const n = 16;
+    for(let i=0;i<n;i++){
+      const speed = 0.00007 + (i%5)*0.00002;
+      const t = (now*speed + i*0.61803) % 1;
+      const x = (i*97 % W + Math.sin(now/1800+i)*20 + W) % W;
+      const y = fieldTop + t*(baseY-fieldTop);
+      const r = 1 + (i%3)*0.6;
+      ctx.beginPath(); ctx.arc(x, y, r*SCALE, 0, Math.PI*2); ctx.fill();
+    }
+    ctx.restore();
+  }
+
+  function drawSectorLabels(){
+    ctx.save();
+    ctx.font = 'bold '+(8*Math.min(1,SCALE))+'px Courier New';
+    ctx.textAlign = 'left';
+    ctx.fillStyle = 'rgba(43,42,34,0.28)';
+    for(let row=0; row<LANES; row++){
+      const x0 = marginX + row*laneSpacing;
+      ctx.fillText('SEC-'+String(row+1).padStart(2,'0'), x0+4, fieldTop+12);
+    }
+    ctx.restore();
+  }
+
+  function drawTerrainContours(){
+    // topographic-style elevation lines across the field — seeded so they hold
+    // still frame to frame, using the same deterministic terrain seed as the decor
+    const rand2 = mulberry32(20260906+7);
+    const lineCount = 5;
+    ctx.save();
+    ctx.strokeStyle = 'rgba(74,70,54,0.22)';
+    ctx.lineWidth = 1;
+    ctx.setLineDash([3,4]);
+    for(let i=0;i<lineCount;i++){
+      const baseFrac = (i+1)/(lineCount+1);
+      const y0 = fieldTop + baseFrac*(baseY-fieldTop);
+      const amp = 4 + rand2()*6;
+      const freq = 0.008 + rand2()*0.006;
+      const phase = rand2()*Math.PI*2;
+      ctx.beginPath();
+      for(let x=marginX; x<=marginX+laneSpacing*LANES; x+=8){
+        const y = y0 + Math.sin(x*freq+phase)*amp;
+        if(x===marginX) ctx.moveTo(x,y); else ctx.lineTo(x,y);
+      }
+      ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    ctx.restore();
+  }
+
+  function drawArtilleryHazard(){
+    if(!state.artillery || state.artillery.resolved) return;
+    const now = performance.now();
+    const remain = Math.max(0, (state.artillery.impactAt-now)/1000);
+    const pulse = 0.4 + 0.35*Math.sin(now/110);
+    const top = fieldTop, bottom = baseY+40;
+    for(const lane of state.artillery.lanes){
+      const x0 = marginX + lane*laneSpacing;
+      ctx.save();
+      ctx.fillStyle = 'rgba(161,58,48,'+(0.14+0.12*pulse)+')';
+      ctx.fillRect(x0, top, laneSpacing, bottom-top);
+      ctx.strokeStyle = 'rgba(161,58,48,'+(0.5+0.3*pulse)+')';
+      ctx.lineWidth = 2;
+      ctx.setLineDash([5,4]);
+      ctx.strokeRect(x0, top, laneSpacing, bottom-top);
+      ctx.setLineDash([]);
+      ctx.font = 'bold '+(11*SCALE)+'px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(161,58,48,0.9)';
+      ctx.fillText(remain.toFixed(1)+'s', x0+laneSpacing/2, top+22);
+      ctx.restore();
+    }
+  }
+
+  function drawField(shakeDX, shakeDY){
+    // base fill (overdrawn slightly so screen shake never reveals an edge)
+    ctx.fillStyle = getComputedStyle(document.documentElement).getPropertyValue('--paper');
+    ctx.fillRect(-30,-30,W+60,H+60);
+
+    drawHorizon(shakeDX||0, shakeDY||0);
+
+    // vertical lane bands
+    const top = fieldTop, bottom = baseY+40;
+    for(let row=0; row<LANES; row++){
+      const x0 = marginX + row*laneSpacing;
+      ctx.fillStyle = row%2===0 ? '#c7bfa2' : '#d3cbad';
+      ctx.fillRect(x0, top, laneSpacing, bottom-top);
+      ctx.strokeStyle = 'rgba(43,42,34,0.18)';
+      ctx.lineWidth = 1;
+      ctx.strokeRect(x0, top, laneSpacing, bottom-top);
+    }
+
+    // atmospheric depth haze — darker/cooler near the horizon, clears toward the player
+    const hazeGrad = ctx.createLinearGradient(0, top, 0, bottom);
+    hazeGrad.addColorStop(0, 'rgba(74,70,54,0.16)');
+    hazeGrad.addColorStop(0.4, 'rgba(74,70,54,0.05)');
+    hazeGrad.addColorStop(1, 'rgba(74,70,54,0)');
+    ctx.fillStyle = hazeGrad;
+    ctx.fillRect(marginX, top, laneSpacing*LANES, bottom-top);
+
+    if(FEATURES.TERRAIN_CONTOURS) drawTerrainContours();
+    drawTerrainDecor();
+    drawSectorLabels();
+    drawArtilleryHazard();
+
+    // faint depth guides every couple of units, so distance still reads at a glance
+    ctx.save();
+    ctx.strokeStyle = 'rgba(43,42,34,0.10)';
+    ctx.setLineDash([6,6]);
+    ctx.lineWidth = 1;
+    for(let c=2; c<=10; c+=2){
+      const y = baseY - c*colSpacing;
+      ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(marginX+laneSpacing*LANES, y); ctx.stroke();
+    }
+    ctx.restore();
+
+    // forward line marker, dressed with sandbag ticks instead of a bare dashed rule
+    ctx.strokeStyle = 'rgba(124,46,40,0.35)';
+    ctx.lineWidth = 2;
+    ctx.setLineDash([6,5]);
+    const a = toScreen(2,-0.5), b = toScreen(2,LANES-0.5);
+    ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
+    ctx.setLineDash([]);
+
+    drawDustMotes();
+
+    // grain overlay
+    ctx.save();
+    ctx.globalAlpha = 0.9;
+    ctx.fillStyle = noisePattern;
+    ctx.fillRect(-30,-30,W+60,H+60);
+    ctx.restore();
+  }
+
+  // ---------- TARGET TYPES ----------
+  // Hierarchy of threat: each step up hits harder once engaged, but takes
+  // longer to spin up its weapons after appearing on the board.
+  const TYPES = {
+    soldier:  {key:'soldier',  name:'SOLDIER SQUAD',   hp:24,  dmgPerDrone:3.4, spinUp:1.0, dps:1.5,  reward:15,  w:18, h:30},
+    vehicle:  {key:'vehicle',  name:'VEHICLE',         hp:60,  dmgPerDrone:3.0, spinUp:1.5, dps:3.0,  reward:35,  w:34, h:22},
+    group:    {key:'group',    name:'VEHICLE COLUMN',  hp:140, dmgPerDrone:2.6, spinUp:2.0, dps:5.0,  reward:70,  w:52, h:24},
+    tank:     {key:'tank',     name:'MAIN BATTLE TANK',hp:230, dmgPerDrone:2.1, spinUp:2.5, dps:8.0,  reward:120, w:44, h:26},
+    plant:    {key:'plant',    name:'WEAPONS PLANT',   hp:440, dmgPerDrone:1.5, spinUp:3.5, dps:13.0, reward:250, w:50, h:56},
+    helo:     {key:'helo',     name:'ATTACK HELICOPTER',hp:650,dmgPerDrone:1.1, spinUp:2.5, dps:20.0, reward:500, w:60, h:40},
+    jet:        {key:'jet',        name:'FIGHTER JET',     hp:500, dmgPerDrone:1.3,  spinUp:1.8, dps:16.0, reward:400, w:56, h:40},
+    uas:        {key:'uas',        name:'ENEMY UAS',       hp:580, dmgPerDrone:1.2,  spinUp:3.0, dps:15.0, reward:420, w:68, h:48},
+    tankColumn: {key:'tankColumn', name:'TANK COLUMN',     hp:620, dmgPerDrone:1.15, spinUp:3.2, dps:17.0, reward:450, w:74, h:26},
+    hvt:        {key:'hvt',        name:'HIGH-VALUE TARGET',hp:100, dmgPerDrone:2.5, spinUp:2.0, dps:4.0,  reward:750, w:22, h:34, isHVT:true}
+  };
+  // rare elite units — not part of the normal weighted rotation; cycled in as
+  // occasional high-tier surprises starting at level 15 (see buildLevelQueue)
+  const RARE_TYPES = [TYPES.jet, TYPES.uas, TYPES.tankColumn];
+  const RARE_UNLOCK_LEVEL = 15;
+  // supply crate — not a threat, collected by moving your carrier into its lane
+  const CRATE_TYPE = { key:'crate', name:'SUPPLY CRATE', isCrate:true, w:28, h:20 };
+  const CRATE_EMP_UNLOCK_LEVEL = 8; // large EMP blasts only enter the crate pool at later levels
+
+  // which target types are in rotation at a given level — the roster grows
+  // slowly so new threats stay meaningful instead of flooding in all at once
+  function unlockedTypesForLevel(level){
+    const list = [TYPES.soldier, TYPES.vehicle];
+    if(level>=2) list.push(TYPES.group);  // was level 3 — variety arrives a level sooner
+    if(level>=4) list.push(TYPES.tank);   // was level 5
+    if(level>=9) list.push(TYPES.plant);
+    return list;
+  }
+
+  function weightFor(typeKey, level){
+    switch(typeKey){
+      case 'soldier': return Math.max(1, 10-level);
+      case 'vehicle': return 7;
+      case 'group':   return Math.min(8, 2+level*0.6);
+      case 'tank':    return Math.min(7, 1+level*0.6);
+      case 'plant':   return Math.min(5, level*0.35);
+      default: return 1;
+    }
+  }
+
+  function weightedType(level){
+    const pool = unlockedTypesForLevel(level);
+    const weights = pool.map(t=>({t, w: weightFor(t.key, level)}));
+    const total = weights.reduce((s,x)=>s+x.w,0);
+    let r = rand()*total;
+    for(const item of weights){ if(r<item.w) return item.t; r-=item.w; }
+    return pool[pool.length-1];
+  }
+
+  // ---------- GAME STATE ----------
+  const state = {
+    running:false,
+    level:1,
+    score:0,
+    highScore: Number.isFinite(parseInt(storage.get('swarmHighScore','0'),10)) ? Math.max(0,parseInt(storage.get('swarmHighScore','0'),10)) : 0,
+    arsenal:2500,
+    arsenalCap:2500,
+    health:100,
+    maxHealth:100,
+    lastDeployTime:performance.now(),
+    regenBase:2,
+    regenMax:21,
+    playerLane:3,
+    playerLaneTarget:3,
+    targets:[],
+    telegraphs:[],
+    crates:[],
+    spawnQueue:[],
+    lastSpawn:0,
+    spawnInterval:2200,
+    levelStartTime:0,
+    inBanner:false,
+    particles:[],
+    salvos:[],
+    explosions:[],
+    paused:false,
+    pauseStartedAt:0,
+    comboStreak:0,
+    kills:0,
+    healthFlashRef:100,
+    shakeMag:0,
+    levelWobble:{active:false, until:0, mag:0},
+    levelBannerTimer:null,
+    dailyMode:false,
+    dronesLaunched:0,
+    bestStreak:0,
+    killsByType:{},
+    runStartTime:0,
+    lastEventLevel:0,
+    pendingEventType:null,
+    pendingEventAt:0,
+    pendingEventRetries:0,
+    artillery:null,           // {lanes:[...], impactAt, resolved}
+    commsJammedUntil:0,
+    swarmWindowUntil:0,
+    eventBannerTimer:null
+  };
+
+  function buildLevelQueue(level){
+    const count = Math.min(5+level, 14); // +1 target across the board, keeps early levels from feeling sparse
+    const q = [];
+    for(let i=0;i<count;i++) q.push(weightedType(level));
+    if(level>=8 && level%8===0){
+      // a serious spike in difficulty every 8 levels (was every 10 — a bit more frequent)
+      const bossCount = 1 + Math.floor(level/30);
+      for(let i=0;i<bossCount;i++) q.splice(Math.floor(rand()*(q.length+1)),0,TYPES.helo);
+    }
+    // rare elite surprise: cycles in starting level 15, checked every other level from
+    // there, growing more likely to actually appear the higher the level climbs
+    if(level>=RARE_UNLOCK_LEVEL && (level-RARE_UNLOCK_LEVEL)%2===0){
+      const chance = Math.min(0.75, 0.25 + (level-RARE_UNLOCK_LEVEL)*0.025);
+      if(rand() < chance){
+        const idx = Math.floor((level-RARE_UNLOCK_LEVEL)/2) % RARE_TYPES.length;
+        q.splice(Math.floor(rand()*(q.length+1)), 0, RARE_TYPES[idx]);
+      }
+    }
+    // supply crate: guaranteed every 3rd level from level 3 on, otherwise a modest random chance
+    if(level>=3 && (level%3===0 || rand()<0.12)){
+      q.splice(Math.floor(rand()*(q.length+1)), 0, CRATE_TYPE);
+    }
+    return q;
+  }
+
+  function sliderCapForLevel(level){
+    if(level<=9) return 100+(level-1)*50; // 100 at level 1, up to 500 at level 9
+    return 500+(level-9)*10;              // +10/level from level 10 onward
+  }
+
+  function startLevel(level){
+    state.level = level;
+    state.spawnQueue = buildLevelQueue(level);
+    state.targets = [];
+    state.crates = []; // any uncollected crate from the last level is gone — use it or lose it
+    state.lastSpawn = performance.now()-1700;
+    state.spawnInterval = Math.max(650, 1650-level*80); // faster early cadence (was 1850-level*85)
+    state.levelStartTime = performance.now();
+    document.getElementById('levelStamp').textContent = 'LEVEL '+String(level).padStart(2,'0');
+
+    const cap = sliderCapForLevel(level);
+    slider.max = cap;
+    if(parseInt(slider.value,10) > cap) slider.value = cap;
+    sliderValLabel.textContent = slider.value+' UNITS';
+
+    maybeScheduleEvent(level);
+  }
+
+  // ---------- META-PROGRESSION (MOTOR POOL) ----------
+  const META_UPGRADES = {
+    cap:    { label:'ARSENAL CAP',  desc:'+250 starting cap per level',   perLevel:250, baseCost:150, max:3 },
+    health: { label:'MAX HEALTH',   desc:'+15 max HP per level',          perLevel:15,  baseCost:150, max:3 },
+    regen:  { label:'REGEN RATE',   desc:'+1 base regen/s per level',     perLevel:1,   baseCost:200, max:3 }
+  };
+  function getMetaCurrency(){
+    const v = parseInt(storage.get('swarmMetaCurrency','0'),10);
+    return Number.isFinite(v) ? Math.max(0,v) : 0;
+  }
+  function setMetaCurrency(v){ storage.set('swarmMetaCurrency', Math.max(0,Math.round(v))); }
+  function getMetaUpgrades(){
+    let u;
+    try{ u = JSON.parse(storage.get('swarmMetaUpgrades','{}')); }catch(e){ u = {}; }
+    if(!u || typeof u!=='object') u = {};
+    for(const key of Object.keys(META_UPGRADES)) if(!Number.isFinite(u[key])) u[key]=0;
+    return u;
+  }
+  function setMetaUpgrades(u){ storage.set('swarmMetaUpgrades', JSON.stringify(u)); }
+  function metaUpgradeCost(key, level){ return META_UPGRADES[key].baseCost*(level+1); }
+  function buyMetaUpgrade(key){
+    const def = META_UPGRADES[key]; if(!def) return false;
+    const upgrades = getMetaUpgrades();
+    const level = upgrades[key]||0;
+    if(level>=def.max) return false;
+    const cost = metaUpgradeCost(key, level);
+    const currency = getMetaCurrency();
+    if(currency<cost) return false;
+    setMetaCurrency(currency-cost);
+    upgrades[key] = level+1;
+    setMetaUpgrades(upgrades);
+    return true;
+  }
+  function applyMetaStartingStats(){
+    const upgrades = getMetaUpgrades();
+    state.arsenalCap += (upgrades.cap||0)*META_UPGRADES.cap.perLevel;
+    state.arsenal = state.arsenalCap; // start full, including the bonus cap
+    state.maxHealth += (upgrades.health||0)*META_UPGRADES.health.perLevel;
+    state.health = state.maxHealth;
+    state.regenBase += (upgrades.regen||0)*META_UPGRADES.regen.perLevel;
+  }
+
+  // ---------- RANDOM BATTLEFIELD EVENTS ----------
+  const EVENT_TYPES = ['ARTILLERY','JAMMED_COMMS','HVT','SWARM_WINDOW'];
+
+  function showEventBanner(big, small, holdMs){
+    document.getElementById('eventBannerBig').textContent = big;
+    document.getElementById('eventBannerSmall').textContent = small;
+    const el = document.getElementById('eventBanner');
+    el.style.display = 'block';
+    if(state.eventBannerTimer) clearTimeout(state.eventBannerTimer);
+    state.eventBannerTimer = setTimeout(()=>{
+      state.eventBannerTimer = null;
+      el.style.display = 'none';
+    }, holdMs||2600);
+  }
+
+  function updateEventStatusHUD(){
+    const now = performance.now();
+    const el = document.getElementById('eventStatus');
+    const lines = [];
+    if(state.artillery && !state.artillery.resolved){
+      const remain = Math.max(0, Math.ceil((state.artillery.impactAt-now)/1000));
+      lines.push('<span class="stamp" style="border-color:var(--red-bright); color:var(--red-bright);">ARTY IMPACT '+remain+'s</span>');
+    }
+    if(state.commsJammedUntil > now){
+      lines.push('<span class="stamp">COMMS JAMMED</span>');
+    }
+    if(state.swarmWindowUntil > now){
+      lines.push('<span class="stamp" style="border-color:var(--olive-light); color:var(--olive-light);">SWARM WINDOW +40%</span>');
+    }
+    if(lines.length){
+      el.innerHTML = lines.join('');
+      el.style.display = 'block';
+    } else {
+      el.style.display = 'none';
+    }
+  }
+
+  // Staggering: an event can only be scheduled if at least one full level has
+  // passed since the last one, then it's a coin-flip-ish roll on top of that —
+  // satisfies "no more than every other level, but random" rather than a fixed cadence.
+  function maybeScheduleEvent(level){
+    if(!FEATURES.RANDOM_EVENTS) return;
+    if(level - state.lastEventLevel < 2) return;
+    if(rand() >= 0.40) return;
+    const type = EVENT_TYPES[Math.floor(rand()*EVENT_TYPES.length)];
+    state.lastEventLevel = level;
+    state.pendingEventType = type;
+    state.pendingEventAt = performance.now() + 2500 + rand()*3000;
+  }
+
+  function triggerEvent(type){
+    switch(type){
+      case 'ARTILLERY': startArtilleryEvent(); return true;
+      case 'JAMMED_COMMS': startCommsJamEvent(); return true;
+      case 'HVT': return startHVTEvent();
+      case 'SWARM_WINDOW': startSwarmWindowEvent(); return true;
+    }
+    return true;
+  }
+
+  function startArtilleryEvent(){
+    const lanes = [];
+    while(lanes.length<2){
+      const l = Math.floor(rand()*LANES);
+      if(!lanes.includes(l)) lanes.push(l);
+    }
+    state.artillery = { lanes, impactAt: performance.now()+5000, resolved:false };
+    showEventBanner('INCOMING ARTILLERY','COUNTER-BATTERY WARNING — IMPACT IN 5 SEC', 2200);
+    SFX.alarm();
+  }
+
+  function resolveArtilleryImpact(){
+    const art = state.artillery;
+    art.resolved = true;
+    const hitPlayerLane = Math.round(state.playerLane);
+    let playerHit = false;
+    for(const lane of art.lanes){
+      if(hitPlayerLane === lane) playerHit = true;
+      for(const t of [...state.targets]){
+        if(t.lane===lane){
+          const p = toScreen(t.col, t.lane);
+          spawnExplosion(p.x, p.y-10*SCALE, 400);
+          removeTarget(t);
+        }
+      }
+      for(let c=1;c<=9;c+=2){
+        const p = toScreen(c, lane);
+        spawnExplosion(p.x, p.y, 220+Math.random()*120);
+      }
+    }
+    triggerShake(16);
+    SFX.empBlast();
+    if(playerHit){
+      state.health = Math.max(0, state.health-30);
+      pulseDamageFlash();
+      if(state.health<=0){ state.health=0; endGame('CAUGHT IN ARTILLERY BARRAGE'); }
+    }
+    state.artillery = null;
+  }
+
+  function startCommsJamEvent(){
+    state.commsJammedUntil = performance.now()+10000;
+    showEventBanner('JAMMED COMMS','COMMUNICATIONS DEGRADED', 2200);
+    SFX.empBlast();
+  }
+
+  function startHVTEvent(){
+    const freeLanes = [];
+    for(let l=0;l<LANES;l++) if(laneFree(l)) freeLanes.push(l);
+    if(freeLanes.length===0) return false; // board's full right now — try again shortly, never overlap a lane
+    const lane = freeLanes[Math.floor(rand()*freeLanes.length)];
+    const col = 7 + rand()*2.5;
+    state.telegraphs.push({ type: TYPES.hvt, lane, col, born: performance.now(), dur: TELEGRAPH_DUR });
+    showEventBanner('HIGH-VALUE TARGET','HVT DETECTED', 2200);
+    SFX.alarm();
+    return true;
+  }
+
+  function startSwarmWindowEvent(){
+    state.swarmWindowUntil = performance.now()+8000;
+    showEventBanner('SWARM WINDOW','SATELLITE LINK ESTABLISHED — DRONE EFFECTIVENESS +40%', 2600);
+    SFX.levelUp();
+  }
+
+  function resetGame(){
+    state.running = true;
+    state.score = 0;
+    state.arsenal = 2500;
+    state.arsenalCap = 2500;
+    state.health = 100;
+    state.maxHealth = 100;
+    state.regenBase = 2;
+    if(FEATURES.META_PROGRESSION) applyMetaStartingStats();
+    state.lastDeployTime = performance.now();
+    state.playerLane = 3; state.playerLaneTarget = 3;
+    state.particles = [];
+    state.salvos = [];
+    state.explosions = [];
+    state.telegraphs = [];
+    state.crates = [];
+    state.paused = false;
+    state.comboStreak = 0;
+    state.kills = 0;
+    state.dronesLaunched = 0;
+    state.bestStreak = 0;
+    state.killsByType = {};
+    state.runStartTime = performance.now();
+    state.lastEventLevel = 0;
+    state.pendingEventType = null;
+    state.pendingEventAt = 0;
+    state.pendingEventRetries = 0;
+    state.artillery = null;
+    state.commsJammedUntil = 0;
+    state.swarmWindowUntil = 0;
+    if(state.eventBannerTimer){ clearTimeout(state.eventBannerTimer); state.eventBannerTimer=null; }
+    document.getElementById('eventBanner').style.display = 'none';
+    document.getElementById('eventStatus').style.display = 'none';
+    updateRankInsignia();
+    const feed = document.getElementById('killFeedText');
+    if(feed) feed.textContent='AWAITING CONTACT';
+    state.healthFlashRef = 100;
+    state.shakeMag = 0;
+    state.levelWobble = {active:false, until:0, mag:0};
+    if(state.levelBannerTimer){ clearTimeout(state.levelBannerTimer); state.levelBannerTimer=null; }
+    document.getElementById('banner').style.display='none';
+    document.getElementById('startOverlay').style.display='none';
+    document.getElementById('endOverlay').style.display='none';
+    startLevel(1);
+  }
+
+  // ---------- SPAWN / OCCUPANCY ----------
+  const TELEGRAPH_DUR = 500; // ms — ghost warning before a target actually lands
+
+  function laneFree(lane){
+    return !state.targets.some(t=>t.lane===lane)
+      && !state.telegraphs.some(g=>g.lane===lane)
+      && !state.crates.some(c=>c.lane===lane);
+  }
+
+  function trySpawn(now){
+    if(state.spawnQueue.length===0) return;
+    if(now-state.lastSpawn < state.spawnInterval) return;
+    // find a free lane
+    const freeLanes = [];
+    for(let l=0;l<LANES;l++) if(laneFree(l)) freeLanes.push(l);
+    if(freeLanes.length===0) return;
+    const lane = freeLanes[Math.floor(rand()*freeLanes.length)];
+    const type = state.spawnQueue.shift();
+    const col = 7 + rand()*2.5;
+    state.telegraphs.push({ type, lane, col, born: now, dur: TELEGRAPH_DUR });
+    state.lastSpawn = now;
+  }
+
+  function resolveTelegraphs(now){
+    for(const g of [...state.telegraphs]){
+      if(now - g.born < g.dur) continue;
+      state.telegraphs.splice(state.telegraphs.indexOf(g),1);
+      if(g.type.isCrate){
+        state.crates.push({ type: g.type, lane: g.lane, col: g.col, spawnedAt: now });
+        continue;
+      }
+      state.targets.push({
+        type: g.type,
+        lane: g.lane, col: g.col,
+        hp: g.type.hp, maxHp: g.type.hp,
+        age: 0,
+        spawnedAt: now,
+        hitFlash:0
+      });
+    }
+  }
+
+  const CRATE_LIFESPAN = 16000; // ms before an uncollected crate is gone
+
+  function rollCrateReward(){
+    const arsenalFrac = state.arsenal/state.arsenalCap;
+    const healthFrac = state.health/state.maxHealth;
+    const options = [
+      { key:'arsenal', w: 1 + (1-arsenalFrac)*2 },
+      { key:'medic',   w: 1 + (1-healthFrac)*2 }
+    ];
+    if(state.level >= CRATE_EMP_UNLOCK_LEVEL) options.push({ key:'emp', w: 1 });
+    const total = options.reduce((s,o)=>s+o.w,0);
+    let r = rand()*total;
+    for(const o of options){ if(r<o.w) return o.key; r-=o.w; }
+    return options[options.length-1].key;
+  }
+
+  function removeCrate(c){
+    const i = state.crates.indexOf(c);
+    if(i>=0) state.crates.splice(i,1);
+  }
+
+  function collectCrate(crate){
+    const kind = rollCrateReward();
+    if(kind==='arsenal'){
+      const amount = Math.round(state.arsenalCap*0.35);
+      state.arsenal = Math.min(state.arsenalCap, state.arsenal+amount);
+      SFX.arsenalPickup();
+      triggerComboFlash('ARSENAL CACHE +'+amount, 0, true);
+    } else if(kind==='medic'){
+      const amount = Math.round(state.maxHealth*0.25);
+      state.health = Math.min(state.maxHealth, state.health+amount);
+      if(state.health > state.healthFlashRef) state.healthFlashRef = state.health;
+      SFX.medicPickup();
+      triggerComboFlash('FIELD MEDIC +'+amount+' HP', 0, true);
+    } else if(kind==='emp'){
+      for(const t of state.targets){ t.age = -2; } // resets and delays every active target's spin-up
+      SFX.empBlast();
+      triggerEmpFlash();
+      triggerShake(12);
+    }
+  }
+
+  function resolveCrates(now){
+    for(const c of [...state.crates]){
+      if(Math.abs(state.playerLane - c.lane) < 0.15){
+        collectCrate(c);
+        removeCrate(c);
+        continue;
+      }
+      if(now - c.spawnedAt > CRATE_LIFESPAN){
+        removeCrate(c);
+      }
+    }
+  }
+
+  // ---------- RANK / LIVE KILL FEED ----------
+  // Rank ladder aligned to the U.S. Army commissioned officer rank progression
+  // (army.mil/ranks) — order and names match Second Lieutenant through
+  // General of the Army; thresholds simply spread that ladder across score.
+  const RANKS=[
+    {min:0,     title:'SECOND LIEUTENANT'},
+    {min:1600,  title:'FIRST LIEUTENANT'},
+    {min:4000,  title:'CAPTAIN'},
+    {min:8000,  title:'MAJOR'},
+    {min:14000, title:'LIEUTENANT COLONEL'},
+    {min:22000, title:'COLONEL'},
+    {min:30000, title:'BRIGADIER GENERAL'},
+    {min:40000, title:'MAJOR GENERAL'},
+    {min:52000, title:'LIEUTENANT GENERAL'},
+    {min:66000, title:'GENERAL'},
+    {min:84000, title:'GENERAL OF THE ARMY'}
+  ];
+  function getRank(score){const v=Math.max(0,Math.round(Number(score)||0));let r=RANKS[0];for(const x of RANKS){if(v>=x.min)r=x;else break;}return r;}
+  // 5-point star generator, used for the 1-5 star general officer insignia
+  function starPath(cx,cy,outerR,innerR){
+    let d='';
+    for(let i=0;i<10;i++){
+      const r = i%2===0 ? outerR : innerR;
+      const ang = -Math.PI/2 + i*Math.PI/5;
+      const x = cx + r*Math.cos(ang), y = cy + r*Math.sin(ang);
+      d += (i===0?'M':'L')+x.toFixed(1)+' '+y.toFixed(1)+' ';
+    }
+    return d+'Z';
+  }
+  function starsRow(n){
+    const spacing = 120/(n+1);
+    let paths='';
+    for(let i=1;i<=n;i++) paths += '<path class="rankStar" d="'+starPath(spacing*i,35,11,4.3)+'"/>';
+    return paths;
+  }
+  // Procedural oak leaf outline: width tapers to a point at both the tip and
+  // the stem end (envelope), modulated by a repeating wave to produce real
+  // lobed leaf margins instead of a smooth teardrop.
+  const OAK_LEAF = { cx:60, tipY:9, baseY:58, maxWidth:15, lobes:3 };
+  function oakLeafWidth(t){
+    const envelope = Math.sin(Math.PI*t);
+    const wave = 0.85 + 0.15*Math.cos(t*OAK_LEAF.lobes*2*Math.PI);
+    return OAK_LEAF.maxWidth*envelope*wave;
+  }
+  function oakLeafPath(){
+    const { cx, tipY, baseY } = OAK_LEAF;
+    const steps = 28;
+    const right = [];
+    for(let i=0;i<=steps;i++){
+      const t = i/steps;
+      right.push([cx+oakLeafWidth(t), tipY+t*(baseY-tipY)]);
+    }
+    const left = right.slice().reverse().map(([x,y])=>[cx-(x-cx), y]);
+    const all = right.concat(left);
+    let d = 'M '+all[0][0].toFixed(1)+' '+all[0][1].toFixed(1)+' ';
+    for(let i=1;i<all.length;i++) d += 'L '+all[i][0].toFixed(1)+' '+all[i][1].toFixed(1)+' ';
+    return d+'Z';
+  }
+  function oakLeafVeinPaths(){
+    const { cx, tipY, baseY } = OAK_LEAF;
+    return [0.22,0.5,0.78].map(t=>{
+      const y = (tipY+t*(baseY-tipY)).toFixed(1);
+      const w = oakLeafWidth(t)*0.78;
+      const yUp = (tipY+t*(baseY-tipY)-3).toFixed(1);
+      return '<path class="rankStroke" stroke-width="0.9" d="M '+cx+' '+y+' L '+(cx+w).toFixed(1)+' '+yUp
+        +' M '+cx+' '+y+' L '+(cx-w).toFixed(1)+' '+yUp+'"/>';
+    }).join('');
+  }
+  function rankInsigniaSvg(rank){
+    const common='viewBox="0 0 120 70" aria-hidden="true" focusable="false"';
+    switch(rank){
+      // single gold bar — worn vertical, not horizontal
+      case 'SECOND LIEUTENANT':
+        return '<svg '+common+'><rect class="rankFill" x="53" y="8" width="14" height="54" rx="2"/></svg>';
+      // single silver bar — same vertical bar, engraved centerline distinguishes it from the gold 2LT bar
+      case 'FIRST LIEUTENANT':
+        return '<svg '+common+'><rect class="rankFill" x="53" y="8" width="14" height="54" rx="2"/><line class="rankStroke" x1="60" y1="8" x2="60" y2="62" stroke-width="1.4"/></svg>';
+      // two silver bars, side by side (not stacked)
+      case 'CAPTAIN':
+        return '<svg '+common+'><rect class="rankFill" x="40" y="10" width="12" height="50" rx="2"/><rect class="rankFill" x="68" y="10" width="12" height="50" rx="2"/></svg>';
+      // gold oak leaf, solid — lobed margin, center vein, side veins, short stem
+      case 'MAJOR':
+        return '<svg '+common+'><path class="rankFill" d="'+oakLeafPath()+'"/>'
+          +'<line class="rankStroke" x1="60" y1="9" x2="60" y2="58" stroke-width="1"/>'
+          +oakLeafVeinPaths()
+          +'<line class="rankStroke" x1="60" y1="58" x2="60" y2="65" stroke-width="2.6"/></svg>';
+      // silver oak leaf — identical silhouette, hollow instead of solid
+      case 'LIEUTENANT COLONEL':
+        return '<svg '+common+'><path class="rankStroke" stroke-width="1.8" d="'+oakLeafPath()+'"/>'
+          +'<line class="rankStroke" x1="60" y1="9" x2="60" y2="58" stroke-width="1"/>'
+          +oakLeafVeinPaths()
+          +'<line class="rankStroke" x1="60" y1="58" x2="60" y2="65" stroke-width="2.2"/></svg>';
+      // eagle
+      case 'COLONEL':
+        return '<svg '+common+'><path class="rankFill" d="M60 8 C52 18 43 21 34 24 L44 31 L36 39 L51 40 L46 50 L60 47 L74 50 L69 40 L84 39 L76 31 L86 24 C77 21 68 18 60 8 Z"/><path class="rankStroke" d="M60 15 L60 47 M45 28 L75 28 M48 39 L72 39"/></svg>';
+      // one star
+      case 'BRIGADIER GENERAL':
+        return '<svg '+common+'>'+starsRow(1)+'</svg>';
+      // two stars
+      case 'MAJOR GENERAL':
+        return '<svg '+common+'>'+starsRow(2)+'</svg>';
+      // three stars
+      case 'LIEUTENANT GENERAL':
+        return '<svg '+common+'>'+starsRow(3)+'</svg>';
+      // four stars
+      case 'GENERAL':
+        return '<svg '+common+'>'+starsRow(4)+'</svg>';
+      // five stars — wartime-only rank, topping out the ladder
+      case 'GENERAL OF THE ARMY':
+        return '<svg '+common+'>'+starsRow(5)+'</svg>';
+      default:
+        return '<svg '+common+'><circle class="rankFill" cx="60" cy="35" r="4" opacity=".3"/></svg>';
+    }
+  }
+  function updateRankInsignia(){
+    const rank=getRank(state.score), el=document.getElementById('rankInsignia');
+    if(!el)return;
+    el.innerHTML=rankInsigniaSvg(rank.title);
+    el.title=rank.title;
+    el.setAttribute('aria-label',rank.title+' rank insignia');
+  }
+  function pushKillFeed(target){state.kills++;const el=document.getElementById('killFeedText');if(!el)return;el.textContent=target.type.name+' // KILL CONFIRMED // +'+target.type.reward;el.classList.remove('feed-in');void el.offsetWidth;el.classList.add('feed-in');}
+
+  // ---------- DRONE DEPLOYMENT ----------
+  function deployOnTarget(target, amount){
+    if(amount<=0 || state.arsenal<=0) return;
+    const sent = Math.min(amount, Math.floor(state.arsenal));
+    if(sent<=0) return;
+    state.arsenal -= sent;
+    state.lastDeployTime = performance.now();
+    state.dronesLaunched += sent;
+    SFX.launch();
+
+    const variance = 0.85 + Math.random()*0.3;
+    const swarmBuff = state.swarmWindowUntil > performance.now() ? 1.4 : 1;
+    const dmg = sent * target.type.dmgPerDrone * variance * swarmBuff;
+
+    // particle swarm visual — an organized flock, not a clump of bullets
+    const pStart = toScreen(1.4, state.playerLane);
+    const pEnd = toScreen(target.col, target.lane);
+    const n = Math.min(28, Math.max(6, Math.round(sent/10)));
+    const cols = Math.ceil(Math.sqrt(n));
+    const rows = Math.ceil(n/cols);
+    const spacingX = 9*SCALE, spacingY = 6*SCALE;
+    const cruiseY = Math.min(pStart.y, pEnd.y) - 70*SCALE;
+    const dur = 470+Math.random()*160;
+    for(let i=0;i<n;i++){
+      const gx = (i%cols) - (cols-1)/2;
+      const gy = Math.floor(i/cols) - (rows-1)/2;
+      state.particles.push({
+        x0:pStart.x, y0:pStart.y-14*SCALE,
+        x1:pEnd.x + (Math.random()*10-5)*SCALE, y1:pEnd.y-10*SCALE+(Math.random()*10-5)*SCALE,
+        cruiseY,
+        fx: gx*spacingX + (Math.random()*4-2)*SCALE,
+        fy: gy*spacingY + (Math.random()*3-1.5)*SCALE,
+        phase: Math.random()*Math.PI*2,
+        r: (1.6+Math.random()*1.1)*SCALE,
+        t:0, dur
+      });
+    }
+
+    // damage lands only once the swarm touches down on the target
+    state.salvos.push({ target, dmg, sent, startTime: performance.now(), dur });
+
+    if(state.arsenal<=0){
+      endGame('ARSENAL DEPLETED');
+    }
+  }
+
+  const SPLASH_RADIUS = 115; // large enough to catch a second target sitting right on top of the first
+
+  function triggerShake(mag){
+    state.shakeMag = Math.max(state.shakeMag, mag);
+  }
+
+  function applyHit(target, dmg, refundSent){
+    target.hp -= dmg;
+    target.hitFlash = 1;
+    SFX.impact();
+    if(target.type.key==='helo') triggerShake(6); // every hit on a boss has extra weight
+    if(target.hp<=0){
+      const timeBonus = Math.max(0, Math.round(40 - Math.max(0,target.age)*3));
+      state.score += target.type.reward + timeBonus;
+      state.killsByType[target.type.key] = (state.killsByType[target.type.key]||0)+1;
+      updateRankInsignia();
+      pushKillFeed(target);
+      SFX.kill();
+      triggerShake(Math.min(16, 3+target.type.reward*0.03));
+      if(target.type.isHVT){
+        triggerComboFlash('HVT NEUTRALIZED +'+target.type.reward, 0, true);
+      }
+      if(refundSent>0){
+        const overkill = Math.max(0, -target.hp);
+        const refund = Math.min(refundSent, Math.floor(overkill/target.type.dmgPerDrone));
+        state.arsenal = Math.min(state.arsenalCap, state.arsenal+refund);
+
+        // efficiency/combo bonus: rewards a clean kill with little overkill and few wasted drones
+        const neededApprox = target.maxHp/target.type.dmgPerDrone;
+        const overkillRatio = overkill/target.maxHp;
+        const wasteRatio = Math.max(0, (refundSent-neededApprox)/neededApprox);
+        if(overkillRatio < 0.12 && wasteRatio < 0.25){
+          state.comboStreak += 1;
+          state.bestStreak = Math.max(state.bestStreak, state.comboStreak);
+          const mult = Math.min(2.5, 1+state.comboStreak*0.15);
+          const bonus = Math.round(target.type.reward*0.5*mult);
+          state.score += bonus;
+          if(!target.type.isHVT) triggerComboFlash(bonus, state.comboStreak);
+        } else {
+          state.comboStreak = 0;
+        }
+      }
+      removeTarget(target);
+    }
+  }
+
+  function spawnExplosion(x, y, strength){
+    const maxRadius = Math.min(70, 15 + strength*0.32) * SCALE;
+    state.explosions.push({ x, y, maxRadius, t:0, dur: 420+Math.random()*160 });
+  }
+
+  function resolveSalvos(now){
+    for(const s of [...state.salvos]){
+      if(now - s.startTime < s.dur) continue;
+      state.salvos.splice(state.salvos.indexOf(s),1);
+      const target = s.target;
+      if(!state.targets.includes(target)) continue; // target already destroyed by an earlier salvo
+
+      const impact = toScreen(target.col, target.lane);
+      applyHit(target, s.dmg, s.sent);
+      spawnExplosion(impact.x, impact.y-10*SCALE, s.sent);
+
+      // splash: a big enough swarm bleeds over onto anything else close by in the blast footprint
+      for(const other of [...state.targets]){
+        if(other===target) continue;
+        const op = toScreen(other.col, other.lane);
+        const dist = Math.hypot(op.x-impact.x, op.y-impact.y);
+        if(dist < SPLASH_RADIUS*SCALE){
+          const falloff = 0.45*(1-dist/SPLASH_RADIUS);
+          applyHit(other, s.dmg*falloff, 0);
+          spawnExplosion(op.x, op.y-10*SCALE, s.sent*falloff);
+        }
+      }
+    }
+  }
+
+  function removeTarget(t){
+    const i = state.targets.indexOf(t);
+    if(i>=0) state.targets.splice(i,1);
+  }
+
+  // ---------- UPDATE ----------
+  let lastFrame = performance.now();
+  function update(now){
+    const dt = Math.max(0, Math.min(0.05, (now-lastFrame)/1000));
+    lastFrame = now;
+
+    // shake/wobble must keep decaying even while the level-complete banner is up or
+    // the game is paused — otherwise the last kill's shake freezes on screen indefinitely
+    if(state.shakeMag>0.05) state.shakeMag *= Math.exp(-dt*28);
+    else state.shakeMag = 0;
+
+    if(state.levelWobble.active){
+      if(now >= state.levelWobble.until) state.levelWobble.active = false;
+    }
+
+    if(!state.running || state.inBanner || state.paused) return;
+
+    // player lane smoothing
+    state.playerLane += (state.playerLaneTarget-state.playerLane)*Math.min(1,dt*8);
+
+    // regen
+    const idle = (now-state.lastDeployTime)/1000;
+    const regenRate = state.regenBase + Math.min(idle*1.6, state.regenMax-state.regenBase);
+    state.arsenal = Math.min(state.arsenalCap, state.arsenal+regenRate*dt);
+    document.getElementById('regenNote').textContent = 'REGEN: +'+regenRate.toFixed(1)+'/s';
+
+    // spawn
+    trySpawn(now);
+    resolveTelegraphs(now);
+    resolveCrates(now);
+
+    // battlefield events: fire the scheduled event once its delay elapses,
+    // and resolve an artillery strike once its countdown reaches zero
+    if(state.pendingEventType && now >= state.pendingEventAt){
+      const ok = triggerEvent(state.pendingEventType);
+      if(ok){
+        state.pendingEventType = null;
+        state.pendingEventRetries = 0;
+      } else {
+        // couldn't place it right now (e.g. every lane occupied) — retry
+        // shortly rather than force an overlap, but never retry forever
+        state.pendingEventRetries = (state.pendingEventRetries||0) + 1;
+        if(state.pendingEventRetries > 40){ // ~28s of retrying — give up cleanly
+          state.pendingEventType = null;
+          state.pendingEventRetries = 0;
+        } else {
+          state.pendingEventAt = now + 700;
+        }
+      }
+    }
+    if(state.artillery && !state.artillery.resolved && now >= state.artillery.impactAt){
+      resolveArtilleryImpact();
+      if(!state.running) return; // the barrage may have just ended the run
+    }
+
+    // targets: age, decay hit-flash, and deal ongoing fire once armed —
+    // a target only ever leaves the board when drones finish it off
+    for(const t of state.targets){
+      t.age += dt;
+      if(t.hitFlash>0) t.hitFlash = Math.max(0,t.hitFlash-dt*3);
+      if(t.age >= t.type.spinUp){
+        const dpsMult = 0.6 + (state.level-1)*0.085; // level 1 fires at 60% strength (was 50%), ramps a bit faster too
+        state.health -= t.type.dps*dt*dpsMult;
+        if(state.health<=0){
+          state.health = 0;
+          endGame('COMMANDER DOWN');
+          break;
+        }
+      }
+    }
+
+    // resolve any drone salvos that have completed their flight
+    resolveSalvos(now);
+
+    // particles
+    for(const p of [...state.particles]){
+      p.t += dt*1000;
+      if(p.t>=p.dur) state.particles.splice(state.particles.indexOf(p),1);
+    }
+
+    // explosions
+    for(const ex of [...state.explosions]){
+      ex.t += dt*1000;
+      if(ex.t>=ex.dur) state.explosions.splice(state.explosions.indexOf(ex),1);
+    }
+
+    // level complete check — held back until any pending/active event has
+    // actually played out, so an event never spills silently into next level
+    if(state.running && !state.inBanner && state.spawnQueue.length===0 && state.targets.length===0
+       && state.telegraphs.length===0 && !state.pendingEventType && !(state.artillery && !state.artillery.resolved)){
+      levelComplete();
+    }
+
+    // screen flash when health has dropped 10%+ since the last check point
+    if(state.health < state.healthFlashRef - state.maxHealth*0.10){
+      pulseDamageFlash();
+      state.healthFlashRef = state.health;
+    } else if(state.health > state.healthFlashRef){
+      state.healthFlashRef = state.health;
+    }
+
+    updateHUD();
+  }
+
+  function levelComplete(){
+    state.inBanner = true;
+    SFX.levelUp();
+
+    // a few seconds of wobble right as the win registers, then it stops on its own —
+    // independent of the banner, which stays up longer
+    state.levelWobble = { active:true, until: performance.now()+1000, mag: 6 };
+    const winFlash = document.getElementById('comboFlash');
+    winFlash.style.transition = 'none';
+    winFlash.style.opacity = '1';
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        winFlash.style.transition = 'opacity 700ms ease-out';
+        winFlash.style.opacity = '0';
+      });
+    });
+
+    const elapsed = (performance.now()-state.levelStartTime)/1000;
+    const swift = elapsed < (10+state.level*4);
+    state.arsenalCap += 200;
+
+    const healPct = Math.max(1, 16 - state.level);
+    const healRegen = Math.round(state.maxHealth*(healPct/100));
+    state.health = Math.min(state.maxHealth, state.health + healRegen);
+
+    let bonusText = 'CAP +200 &mdash; MEDIC +'+healRegen+' HP';
+    if(swift){
+      state.arsenal = Math.min(state.arsenalCap, state.arsenal+1000);
+      state.arsenalCap += 150;
+      bonusText = 'SWIFT VICTORY BONUS &mdash; CAP +350, +1000 DRONES, +'+healRegen+' HP';
+    }
+    document.getElementById('bannerBig').textContent = 'LEVEL '+String(state.level).padStart(2,'0')+' COMPLETE';
+    document.getElementById('bannerSmall').innerHTML = bonusText;
+    document.getElementById('banner').style.display = 'block';
+    if(state.levelBannerTimer) clearTimeout(state.levelBannerTimer);
+    state.levelBannerTimer = setTimeout(()=>{
+      state.levelBannerTimer = null;
+      if(!state.running || !state.inBanner) return;
+      document.getElementById('banner').style.display = 'none';
+      state.inBanner = false;
+      startLevel(state.level+1);
+    }, 4400);
+  }
+
+  function endGame(reason){
+    if(!state.running) return;
+    state.running = false;
+    if(state.levelBannerTimer){ clearTimeout(state.levelBannerTimer); state.levelBannerTimer=null; }
+    state.inBanner = false;
+    document.getElementById('banner').style.display='none';
+    const isNewBest = state.score > state.highScore;
+    if(isNewBest){
+      state.highScore = state.score;
+      storage.set('swarmHighScore', state.highScore);
+    }
+    document.getElementById('endReason').textContent = reason;
+    document.getElementById('endLevel').textContent = state.level;
+    document.getElementById('endScore').textContent = Math.round(state.score);
+    document.getElementById('endHigh').textContent = Math.round(state.highScore);
+    document.getElementById('endRank').textContent = getRank(state.score).title;
+    document.getElementById('endNewBest').style.display = isNewBest ? 'inline-block' : 'none';
+
+    const dailyRow = document.getElementById('endDailyBestRow');
+    if(FEATURES.DAILY_CHALLENGE && state.dailyMode){
+      const prevBest = getDailyBest();
+      const newDailyBest = Math.max(prevBest, Math.round(state.score));
+      storage.set(dailyBestKey(), newDailyBest);
+      document.getElementById('endDailyBest').textContent = newDailyBest;
+      dailyRow.style.display = '';
+    } else {
+      dailyRow.style.display = 'none';
+    }
+
+    const metaRow = document.getElementById('endMetaEarnedRow');
+    if(FEATURES.META_PROGRESSION){
+      const earned = Math.max(0, Math.round(state.score/50));
+      setMetaCurrency(getMetaCurrency()+earned);
+      document.getElementById('endMetaEarned').textContent = earned;
+      metaRow.style.display = '';
+    } else {
+      metaRow.style.display = 'none';
+    }
+
+    const aar = document.getElementById('aarSection');
+    if(FEATURES.AFTER_ACTION_REPORT){
+      document.getElementById('aarKills').textContent = state.kills;
+      document.getElementById('aarDrones').textContent = Math.round(state.dronesLaunched);
+      document.getElementById('aarStreak').textContent = state.bestStreak;
+      const secs = Math.max(0, Math.round((performance.now()-state.runStartTime)/1000));
+      document.getElementById('aarTime').textContent = Math.floor(secs/60)+':'+String(secs%60).padStart(2,'0');
+      const byType = Object.entries(state.killsByType)
+        .sort((a,b)=>b[1]-a[1])
+        .map(([key,n])=>{
+          const t = TYPES[key];
+          return (t?t.name:key)+' x'+n;
+        }).join(', ');
+      document.getElementById('aarByType').textContent = byType || 'NONE';
+      aar.style.display = '';
+    } else {
+      aar.style.display = 'none';
+    }
+
+    document.getElementById('endOverlay').style.display = 'flex';
+  }
+
+  function updateHUD(){
+    document.getElementById('scoreVal').textContent = Math.round(state.score);
+    document.getElementById('highVal').textContent = Math.round(state.highScore);
+    document.getElementById('bestBadgeVal').textContent = Math.round(state.highScore);
+    document.getElementById('healthBar').style.width = Math.max(0,state.health)+'%';
+    document.getElementById('arsenalBar').style.width = (100*state.arsenal/state.arsenalCap)+'%';
+    document.getElementById('arsenalText').textContent = Math.floor(state.arsenal)+' / '+state.arsenalCap;
+  }
+
+  // ---------- SCREEN FLASHES ----------
+  function pulseDamageFlash(){
+    SFX.damage();
+    const el = document.getElementById('damageFlash');
+    el.style.transition = 'none';
+    el.style.opacity = '1';
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        el.style.transition = 'opacity 550ms ease-out';
+        el.style.opacity = '0';
+      });
+    });
+  }
+
+  function triggerEmpFlash(){
+    const el = document.getElementById('empFlash');
+    el.style.transition = 'none';
+    el.style.opacity = '1';
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        el.style.transition = 'opacity 750ms ease-out';
+        el.style.opacity = '0';
+      });
+    });
+  }
+
+  function triggerComboFlash(bonus, streak, rawText){
+    if(!rawText) SFX.combo();
+    const flash = document.getElementById('comboFlash');
+    flash.style.transition = 'none';
+    flash.style.opacity = '1';
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        flash.style.transition = 'opacity 500ms ease-out';
+        flash.style.opacity = '0';
+      });
+    });
+
+    const popup = document.getElementById('comboPopup');
+    const txt = document.getElementById('comboPopupText');
+    txt.textContent = rawText ? bonus : ('EFFICIENT +'+bonus+(streak>1 ? '  STREAK x'+streak : ''));
+    popup.style.transition = 'none';
+    popup.style.opacity = '1';
+    popup.style.transform = 'translate(-50%,-50%) scale(1) rotate(-2deg)';
+    requestAnimationFrame(()=>{
+      requestAnimationFrame(()=>{
+        popup.style.transition = 'opacity 900ms ease-out, transform 900ms ease-out';
+        popup.style.opacity = '0';
+        popup.style.transform = 'translate(-50%,-70%) scale(0.9) rotate(-2deg)';
+      });
+    });
+  }
+
+  // ---------- DRAW ----------
+  // One drone-launch pod, with per-unit variation so the four don't read as
+  // identical copies: 0=normal, 1=scratch, 2=slightly rotated, 3=darker lid + warning marking
+  function drawDronePod(cx, cy, w, h, variant, darkCol, steelCol, steelDark){
+    ctx.save();
+    ctx.translate(cx, cy);
+    if(variant===2) ctx.rotate(0.06);
+    const lidCol = variant===3 ? '#3a4640' : steelCol;
+    // body
+    ctx.fillStyle = steelDark;
+    ctx.fillRect(-w/2, -h/2, w, h);
+    ctx.fillStyle = lidCol;
+    ctx.fillRect(-w/2, -h/2, w, h*0.62); // lid (upper portion)
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 1;
+    ctx.strokeRect(-w/2, -h/2, w, h);
+    // lid seam
+    ctx.strokeStyle = 'rgba(33,31,25,0.6)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(-w/2, -h/2+h*0.62); ctx.lineTo(w/2, -h/2+h*0.62); ctx.stroke();
+    // recessed panel line
+    ctx.strokeStyle = 'rgba(33,31,25,0.4)'; ctx.lineWidth = 0.5;
+    ctx.strokeRect(-w/2+1.2, -h/2+1, w-2.4, h*0.62-2);
+    // latch + hinge
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(-1, -h/2+h*0.62-0.8, 2, 1.6); // latch on the seam
+    ctx.fillRect(w/2-1.6, h/2-1.6, 1.6, 1.6); // hinge at rear corner
+    // mounting bracket corners
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 0.7;
+    ctx.beginPath();
+    ctx.moveTo(-w/2, -h/2+1.5); ctx.lineTo(-w/2, -h/2); ctx.lineTo(-w/2+1.5, -h/2);
+    ctx.moveTo(w/2-1.5, -h/2); ctx.lineTo(w/2, -h/2); ctx.lineTo(w/2, -h/2+1.5);
+    ctx.stroke();
+    // cargo strap
+    ctx.strokeStyle = 'rgba(33,31,25,0.5)'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(-w/2, 0); ctx.lineTo(w/2, 0); ctx.stroke();
+    // small electrical/launch connector
+    ctx.fillStyle = '#c48e2d';
+    ctx.beginPath(); ctx.arc(w/2-1.4, h/2-0.4, 0.5, 0, Math.PI*2); ctx.fill();
+    // rotor mechanism nub poking up through the lid
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(-1.2, -h/2-2, 2.4, 2.2);
+    // per-unit variation extras
+    if(variant===1){
+      // scratch — thin bright diagonal mark on the lid
+      ctx.strokeStyle = 'rgba(219,213,189,0.35)'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(-w/2+1.5,-h/2+1); ctx.lineTo(-w/2+4,-h/2+h*0.5); ctx.stroke();
+    }
+    if(variant===3){
+      // small warning marking stencil
+      ctx.fillStyle = 'rgba(124,46,40,0.6)';
+      ctx.beginPath(); ctx.moveTo(w/2-3.4,-h/2+0.8); ctx.lineTo(w/2-1.4,-h/2+0.8); ctx.lineTo(w/2-2.4,-h/2+2.4); ctx.closePath(); ctx.fill();
+    }
+    // tiny serial number
+    ctx.fillStyle = 'rgba(219,213,189,0.4)';
+    ctx.font = 'bold 2px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('P-0'+(variant+1), 0, h/2-0.6);
+    ctx.restore();
+  }
+
+  function drawPlayer(){
+    const p = toScreen(1.3, state.playerLane);
+    ctx.save();
+    ctx.translate(p.x, p.y);
+    ctx.scale(SCALE, SCALE);
+
+    const bodyDark  = '#333c26';
+    const bodyMid   = '#454f34';
+    const bodyLight = '#5c6a42';
+    const darkCol   = '#211f19';
+    const steelCol  = '#5c6b63';
+    const steelDark = '#454f4a';
+    const glassCol  = '#828d80';
+    const glassLite = '#aab3a0';
+
+    // side-profile layout — front (cab/hood) toward +x, matching the same
+    // convention used by the enemy technical, so both read as the same "camera"
+    const groundY    = 6;
+    const rearX      = -50;  // rear bumper (bed end)
+    const frontX     = 42;   // front bumper (hood end)
+    const cabBackX   = 8;    // where the bed wall meets the cab
+    const roofY      = -26;  // flat cab roof height
+    const roofFrontX = 20;   // where the flat roof ends and the windshield begins
+    const hoodY      = -16;  // flat hood height
+    const hoodStartX = 30;   // where the windshield meets the hood
+    const hoodEndX   = 36;   // where the flat hood ends and the grille begins
+
+    // contact shadow
+    ctx.fillStyle = 'rgba(33,31,25,0.22)';
+    ctx.beginPath(); ctx.ellipse(-4, groundY+5, 48, 6, 0, 0, Math.PI*2); ctx.fill();
+
+    // ---- six-wheel configuration: 3 axle positions, each drawn as a near +
+    // fainter far wheel so it reads as a tandem/dual axle in side profile ----
+    const wheelXs = [rearX+10, -13, frontX-11];
+    wheelXs.forEach(wx=>{
+      // faint far-side wheel, offset slightly up/behind for a dual-axle read
+      ctx.save();
+      ctx.globalAlpha = 0.55;
+      ctx.fillStyle = darkCol;
+      ctx.beginPath(); ctx.arc(wx-1.5, groundY-1.5, 6.4, 0, Math.PI*2); ctx.fill();
+      ctx.restore();
+      // near wheel
+      ctx.fillStyle = darkCol;
+      ctx.beginPath(); ctx.arc(wx, groundY, 6.6, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#4a4636';
+      ctx.beginPath(); ctx.arc(wx, groundY, 3.1, 0, Math.PI*2); ctx.fill();
+      // brake/hub center + lug pattern
+      ctx.fillStyle = darkCol;
+      ctx.beginPath(); ctx.arc(wx, groundY, 1.1, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(219,213,189,0.32)'; ctx.lineWidth = 0.6;
+      for(let a=0;a<Math.PI*2;a+=Math.PI/3){
+        ctx.beginPath(); ctx.moveTo(wx,groundY); ctx.lineTo(wx+Math.cos(a)*3.1, groundY+Math.sin(a)*3.1); ctx.stroke();
+      }
+      // individual tread blocks — slightly irregular spacing around the tire
+      ctx.strokeStyle = 'rgba(33,31,25,0.6)'; ctx.lineWidth = 0.9;
+      for(let a=0;a<Math.PI*2;a+=Math.PI/7){
+        const jitter = (a*3.1)%1*0.6;
+        ctx.beginPath();
+        ctx.moveTo(wx+Math.cos(a)*5.6, groundY+Math.sin(a)*(5.6+jitter));
+        ctx.lineTo(wx+Math.cos(a)*6.6, groundY+Math.sin(a)*(6.6+jitter));
+        ctx.stroke();
+      }
+      // mud/dust around the lower portion
+      ctx.fillStyle = 'rgba(120,108,78,0.28)';
+      ctx.beginPath(); ctx.arc(wx, groundY+2.4, 5.6, 0.15*Math.PI, 0.85*Math.PI); ctx.lineTo(wx,groundY+2.4); ctx.closePath(); ctx.fill();
+      // fender overlap arch
+      ctx.strokeStyle = 'rgba(33,31,25,0.4)'; ctx.lineWidth = 1.4;
+      ctx.beginPath(); ctx.arc(wx, groundY-2, 8.4, Math.PI, Math.PI*2); ctx.stroke();
+    });
+
+    // ---- full body silhouette: flatbed at rear, flat-roofed cab, sloped
+    // windshield, flat hood — one continuous outline, "assembled sheet metal" ----
+    const bodyGrad = ctx.createLinearGradient(rearX,0,frontX,0);
+    bodyGrad.addColorStop(0,bodyDark); bodyGrad.addColorStop(0.5,bodyMid); bodyGrad.addColorStop(1,bodyLight);
+    ctx.fillStyle = bodyGrad;
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 2; // primary silhouette weight
+    ctx.beginPath();
+    ctx.moveTo(rearX, groundY);
+    ctx.lineTo(rearX, -14);
+    ctx.lineTo(cabBackX, -14);
+    ctx.lineTo(cabBackX, roofY);
+    ctx.lineTo(roofFrontX, roofY);
+    ctx.lineTo(hoodStartX, hoodY);
+    ctx.lineTo(hoodEndX, hoodY);
+    ctx.lineTo(frontX, -4);
+    ctx.lineTo(frontX, groundY);
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // hood panel seams
+    ctx.strokeStyle = 'rgba(33,31,25,0.4)'; ctx.lineWidth = 0.75;
+    ctx.beginPath();
+    ctx.moveTo(hoodStartX+1.5, hoodY+0.6); ctx.lineTo(hoodEndX-1, hoodY+0.6);
+    ctx.moveTo(hoodEndX-4, hoodY); ctx.lineTo(hoodEndX-4, -4);
+    ctx.stroke();
+    // hood latch
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(hoodEndX-3, hoodY-1, 1.6, 1.2);
+
+    // door seam + handle + hinge marks along the cab flank
+    ctx.strokeStyle = 'rgba(33,31,25,0.45)'; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.moveTo(cabBackX+7, roofY+1); ctx.lineTo(cabBackX+7, -14); ctx.stroke();
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(cabBackX+9, -19, 2.6, 1); // door handle
+    ctx.strokeStyle = 'rgba(33,31,25,0.3)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(cabBackX+1,-14); ctx.lineTo(cabBackX+1,roofY+1); ctx.stroke(); // hinge line
+
+    // ---- windshield: frame, center divider, reflection, wipers ----
+    ctx.fillStyle = glassCol;
+    ctx.beginPath();
+    ctx.moveTo(roofFrontX-0.5, roofY+1.5);
+    ctx.lineTo(hoodStartX-1, hoodY-0.8);
+    ctx.lineTo(hoodStartX-5, hoodY-0.8);
+    ctx.lineTo(roofFrontX-4, roofY+1.5);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 1; ctx.stroke(); // windshield frame
+    ctx.strokeStyle = 'rgba(33,31,25,0.5)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(roofFrontX-2.4,roofY+1.5); ctx.lineTo(hoodStartX-3,hoodY-0.8); ctx.stroke(); // center divider
+    ctx.strokeStyle = glassLite; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(roofFrontX-1,roofY+2.2); ctx.lineTo(hoodStartX-2,hoodY-1); ctx.stroke(); // reflection streak
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(hoodStartX-4.5,hoodY-1); ctx.lineTo(hoodStartX-2,hoodY-3.6); ctx.stroke(); // wiper 1
+    ctx.beginPath(); ctx.moveTo(hoodStartX-2,hoodY-1); ctx.lineTo(hoodStartX+0.2,hoodY-3.2); ctx.stroke(); // wiper 2
+
+    // rear cab window
+    ctx.fillStyle = glassCol;
+    ctx.beginPath();
+    ctx.moveTo(cabBackX+0.6, roofY+1.5); ctx.lineTo(cabBackX+3.6, roofY+1.5);
+    ctx.lineTo(cabBackX+3.6, -14.6); ctx.lineTo(cabBackX+0.6, -14.6);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 0.7; ctx.stroke();
+
+    // grille slats + individual headlights + bumper mounting points + tow hooks
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(frontX-3, -5, 3, 6);
+    ctx.strokeStyle = 'rgba(219,213,189,0.28)'; ctx.lineWidth = 0.5;
+    for(let gy=-4;gy<=0;gy+=1.3){ ctx.beginPath(); ctx.moveTo(frontX-3,gy); ctx.lineTo(frontX,gy); ctx.stroke(); }
+    ctx.fillStyle = '#dbd5bd';
+    ctx.beginPath(); ctx.arc(frontX-1.4, -3, 1.3, 0, Math.PI*2); ctx.fill();
+    ctx.fillStyle = darkCol;
+    ctx.beginPath(); ctx.arc(frontX-0.6, 1.5, 0.5, 0, Math.PI*2); ctx.fill(); // bumper mounting bolt
+    ctx.beginPath(); ctx.arc(frontX-4.5, 1.5, 0.5, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(frontX-1,3.6); ctx.lineTo(frontX+1.6,3.6); ctx.lineTo(frontX+1.6,5.6); ctx.stroke(); // tow hook
+
+    // side mirror bracket + glass highlight
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(hoodStartX-4, hoodY-5.2, 1.6, 1.6);
+
+    // tiny tactical marking stencil on the door — kept small per spec
+    ctx.fillStyle = 'rgba(219,213,189,0.4)';
+    ctx.font = 'bold 2.4px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('03', cabBackX+1.8, -4.6);
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(hoodStartX-4, hoodY-3.8); ctx.lineTo(hoodStartX-3.4, hoodY-1.2); ctx.stroke();
+    ctx.fillStyle = glassLite;
+    ctx.fillRect(hoodStartX-4.3, hoodY-5.4, 0.7, 0.8);
+
+    // roof antenna
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.moveTo(roofFrontX-1.5, roofY-0.3); ctx.lineTo(roofFrontX-0.3, roofY-9); ctx.stroke();
+
+    // ---- flatbed: panel seams, crossmembers, tie-down rings, bolts, brackets ----
+    ctx.strokeStyle = 'rgba(33,31,25,0.5)'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(rearX+1.5, -13); ctx.lineTo(cabBackX-0.5, -13); ctx.stroke(); // deck top rail
+    for(let cx2=rearX+8; cx2<cabBackX; cx2+=13){
+      ctx.strokeStyle = 'rgba(33,31,25,0.35)'; ctx.lineWidth = 0.6;
+      ctx.beginPath(); ctx.moveTo(cx2, -13); ctx.lineTo(cx2, groundY-1); ctx.stroke(); // crossmember
+      ctx.fillStyle = darkCol;
+      ctx.beginPath(); ctx.arc(cx2, groundY-2.4, 0.6, 0, Math.PI*2); ctx.fill(); // tie-down ring
+      ctx.beginPath(); ctx.arc(cx2, -13, 0.4, 0, Math.PI*2); ctx.fill(); // bolt
+    }
+    // side rail bracket, rear hinge, tailgate latch, scuffs, chipped paint
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(rearX,-9); ctx.lineTo(rearX-1.6,-9); ctx.lineTo(rearX-1.6,-3); ctx.stroke(); // rear hinge
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(rearX-0.8, groundY-4, 1.6, 1.6); // tailgate latch
+    ctx.fillStyle = 'rgba(33,31,25,0.3)';
+    ctx.beginPath(); ctx.ellipse(-2, groundY-1.5, 5, 1, 0, 0, Math.PI*2); ctx.fill(); // cargo scuff mark
+    ctx.fillStyle = 'rgba(150,140,105,0.3)';
+    ctx.beginPath(); ctx.arc(cabBackX-3, -12, 0.9, 0, Math.PI*2); ctx.fill(); // chipped paint fleck
+
+    // ---- four drone-launch pods, individually varied ----
+    const podW = 12, podH = 10.5;
+    const podCenters = [rearX+9, rearX+22, rearX+35, cabBackX-8];
+    podCenters.forEach((cx2,i)=> drawDronePod(cx2, -19, podW, podH, i, darkCol, steelCol, steelDark));
+
+    // ---- rear gunner: a proper mini soldier, not a blob ----
+    const gx = rearX+3, gy = -13;
+    // seat/gunner position platform
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(gx-3, gy+3, 6, 2);
+    // pintle mount + weapon
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 1.6;
+    ctx.beginPath(); ctx.moveTo(gx, gy+3); ctx.lineTo(gx, gy-1); ctx.stroke();
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(gx-1, gy-1); ctx.lineTo(gx+9, gy-6); ctx.stroke(); // HMG barrel
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(gx-3.4, gy-2.6, 2.4, 2.4); // ammo feed box
+    // legs/torso (body armor vest silhouette)
+    ctx.fillStyle = bodyMid;
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 0.9;
+    ctx.beginPath();
+    ctx.moveTo(gx-2.4,gy+3); ctx.lineTo(gx+2.4,gy+3); ctx.lineTo(gx+1.8,gy-3); ctx.lineTo(gx-1.8,gy-3);
+    ctx.closePath(); ctx.fill(); ctx.stroke();
+    // shoulder + arm silhouette reaching to the grip
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 1.8;
+    ctx.beginPath(); ctx.moveTo(gx-1, gy-2.4); ctx.lineTo(gx+3.5, gy-4.6); ctx.stroke();
+    ctx.fillStyle = darkCol;
+    ctx.beginPath(); ctx.arc(gx+3.5, gy-4.6, 0.8, 0, Math.PI*2); ctx.fill(); // gloved hand on grip
+    // neck + helmet with rim, and a face shadow (no face)
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(gx-0.8, gy-4.6, 1.6, 1.6); // neck
+    ctx.beginPath(); ctx.arc(gx, gy-6.4, 2.6, Math.PI, 0); ctx.closePath(); ctx.fill();
+    ctx.fillRect(gx-3, gy-6.4, 6, 1); // helmet rim
+    ctx.fillStyle = 'rgba(0,0,0,0.35)';
+    ctx.beginPath(); ctx.ellipse(gx+0.4, gy-5.8, 1.2, 0.7, 0, 0, Math.PI*2); ctx.fill(); // face shadow under the rim
+    // helmet-mounted antenna/radio detail
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(gx-2.2, gy-7); ctx.lineTo(gx-3.2, gy-9.4); ctx.stroke();
+
+    // stenciled unit marking on the hood
+    ctx.fillStyle = 'rgba(33,31,25,0.55)';
+    ctx.font = 'bold 3.4px Courier New';
+    ctx.textAlign = 'center';
+    ctx.fillText('1-7 ATB', (hoodStartX+hoodEndX)/2, hoodY-2);
+
+    ctx.restore();
+  }
+
+  // A "technical" — armed pickup truck. Shared by the single 'vehicle' type
+  // and the three-truck 'group' column so both read as the same machine.
+  function drawTechnical(ox, oy, scale, variant){
+    variant = variant||0; // 0=normal, 1=column truck 2 (darker glass+tarp), 2=column truck 3 (damaged+altered antenna+crates)
+    ctx.save();
+    ctx.translate(ox, oy);
+    ctx.scale(scale, scale);
+
+    const bodyDark  = '#3a4640';
+    const bodyMid   = '#5c6b63';
+    const bodyLight = '#6f7f76';
+    const darkCol   = '#2b2a22';
+    const glassCol  = variant===1 ? '#5c6862' : '#828d80'; // truck 2: darker tinted windshield
+    const glassLite = '#aab3a0';
+
+    const groundY = 3;      // wheel centerline
+    const rearX   = -20;    // rear bumper (bed end)
+    const frontX  = 20;     // front bumper (hood end)
+    const cabBackX  = -3;   // where the bed wall meets the cab
+    const roofY     = -16;  // flat cab roof height
+    const roofFrontX = 5;   // where the flat roof ends and the windshield begins
+    const hoodY      = -9;  // flat hood height
+    const hoodStartX = 13;  // where the windshield meets the hood
+    const hoodEndX   = 17;  // where the flat hood ends and the grille begins
+
+    // contact shadow
+    ctx.fillStyle = 'rgba(33,31,25,0.20)';
+    ctx.beginPath(); ctx.ellipse(-1, groundY+4, 21, 4.5, 0, 0, Math.PI*2); ctx.fill();
+
+    // full body silhouette in one continuous side profile: low flatbed at the
+    // rear, a flat-roofed cab with a sloped windshield, then a flat hood to the front
+    const bodyGrad = ctx.createLinearGradient(rearX,0,frontX,0);
+    bodyGrad.addColorStop(0,bodyDark); bodyGrad.addColorStop(0.5,bodyMid); bodyGrad.addColorStop(1,bodyLight);
+    ctx.fillStyle = bodyGrad;
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 1.2;
+    ctx.beginPath();
+    ctx.moveTo(rearX, groundY);
+    ctx.lineTo(rearX, -7);                    // rear bed wall
+    ctx.lineTo(cabBackX, -7);                  // bed floor to cab base
+    ctx.lineTo(cabBackX, roofY);               // cab back pillar, vertical
+    ctx.lineTo(roofFrontX, roofY);             // flat roof
+    ctx.lineTo(hoodStartX, hoodY);             // windshield, sloping down to the hood
+    ctx.lineTo(hoodEndX, hoodY);               // flat hood
+    ctx.lineTo(frontX, -3);                    // short drop to the grille
+    ctx.lineTo(frontX, groundY);               // front bumper
+    ctx.closePath();
+    ctx.fill(); ctx.stroke();
+
+    // chassis frame rail along the undercarriage
+    ctx.strokeStyle = 'rgba(33,31,25,0.5)'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(rearX+1, groundY-0.5); ctx.lineTo(frontX-1, groundY-0.5); ctx.stroke();
+
+    // bed cargo rails (two, top + a lower one) + fender panel seam
+    ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(rearX+1.5,-6.2); ctx.lineTo(cabBackX-0.5,-6.2); ctx.stroke();
+    ctx.strokeStyle = 'rgba(43,42,34,0.32)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(rearX+1.5,-3.8); ctx.lineTo(cabBackX-0.5,-3.8); ctx.stroke();
+    ctx.beginPath(); ctx.arc(rearX+7, groundY-1, 5.4, Math.PI*1.05, Math.PI*1.95); ctx.stroke(); // fender panel seam, rear
+
+    // door seam + hood seam
+    ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.moveTo(cabBackX+3.6, roofY+0.5); ctx.lineTo(cabBackX+3.6, -8.4); ctx.stroke(); // door seam
+    ctx.beginPath(); ctx.moveTo(hoodStartX+1, hoodY+0.5); ctx.lineTo(hoodEndX-0.5, hoodY+0.5); ctx.stroke(); // hood seam
+
+    // windshield: clean downward slope from the flat roof to the flat hood, with a frame
+    ctx.fillStyle = glassCol;
+    ctx.beginPath();
+    ctx.moveTo(roofFrontX-0.5, roofY+1.3);
+    ctx.lineTo(hoodStartX-1, hoodY-0.6);
+    ctx.lineTo(hoodStartX-4, hoodY-0.6);
+    ctx.lineTo(roofFrontX-3.3, roofY+1.3);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 1; ctx.stroke(); // windshield frame (heavier than the glass itself)
+    ctx.strokeStyle = glassLite; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.moveTo(roofFrontX-1,roofY+2); ctx.lineTo(hoodStartX-2.5,hoodY-0.9); ctx.stroke();
+
+    // small rear quarter-window (side window) under the flat roof, near the cab's back pillar
+    ctx.fillStyle = glassCol;
+    ctx.beginPath();
+    ctx.moveTo(cabBackX+0.6, roofY+1.3); ctx.lineTo(cabBackX+3.4, roofY+1.3);
+    ctx.lineTo(cabBackX+3.4, -9.5); ctx.lineTo(cabBackX+0.6, -9.5);
+    ctx.closePath(); ctx.fill();
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 0.6; ctx.stroke();
+
+    // grille bars + headlight housing + bumper bolts + tow hook
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(frontX-2.5, -4, 2.5, 4.4);
+    ctx.strokeStyle = 'rgba(219,213,189,0.25)'; ctx.lineWidth = 0.45;
+    for(let gy=-3.4;gy<=-0.6;gy+=0.9){ ctx.beginPath(); ctx.moveTo(frontX-2.5,gy); ctx.lineTo(frontX,gy); ctx.stroke(); }
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 0.8;
+    ctx.beginPath(); ctx.arc(frontX-1.2, -2.2, 1.6, 0, Math.PI*2); ctx.stroke(); // headlight housing ring
+    ctx.fillStyle = '#dbd5bd';
+    ctx.beginPath(); ctx.arc(frontX-1.2, -2.2, 1.15, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(hoodEndX,-3.4); ctx.lineTo(frontX,-3.4); ctx.stroke();
+    ctx.fillStyle = darkCol;
+    ctx.beginPath(); ctx.arc(frontX-0.4, 1.8, 0.4, 0, Math.PI*2); ctx.fill(); // bumper bolt
+    ctx.beginPath(); ctx.arc(frontX-3.8, 1.8, 0.4, 0, Math.PI*2); ctx.fill();
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 0.9;
+    ctx.beginPath(); ctx.moveTo(frontX-0.6,3); ctx.lineTo(frontX+1.2,3); ctx.lineTo(frontX+1.2,4.6); ctx.stroke(); // tow hook
+
+    // side mirror bracket (arm + mirror head) + roof antenna (missing/bent on truck 3)
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 0.6;
+    ctx.beginPath(); ctx.moveTo(hoodStartX-2, hoodY-1.2); ctx.lineTo(hoodStartX-2.8, hoodY-3.6); ctx.stroke(); // bracket arm
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(hoodStartX-3, hoodY-4.4, 1.6, 1.8); // mirror head
+    if(variant===2){
+      // altered/bent antenna, snapped partway up
+      ctx.strokeStyle = darkCol; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(roofFrontX-1.5, roofY-0.3); ctx.lineTo(roofFrontX-2.6, roofY-3.4); ctx.stroke();
+    } else {
+      ctx.strokeStyle = darkCol; ctx.lineWidth = 0.8;
+      ctx.beginPath(); ctx.moveTo(roofFrontX-1.5, roofY-0.3); ctx.lineTo(roofFrontX-0.5, roofY-7.5); ctx.stroke();
+    }
+
+    // wheels — front and rear, drawn on top of the body in true side profile
+    [rearX+7, frontX-8].forEach(wx=>{
+      ctx.fillStyle = darkCol;
+      ctx.beginPath(); ctx.arc(wx, groundY, 4.2, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#4a4636';
+      ctx.beginPath(); ctx.arc(wx, groundY, 1.9, 0, Math.PI*2); ctx.fill();
+      ctx.strokeStyle = 'rgba(219,213,189,0.3)'; ctx.lineWidth = 0.5;
+      for(let a=0;a<Math.PI*2;a+=Math.PI/3){
+        ctx.beginPath(); ctx.moveTo(wx,groundY); ctx.lineTo(wx+Math.cos(a)*1.9, groundY+Math.sin(a)*1.9); ctx.stroke();
+      }
+      // fender arch cut above the wheel
+      ctx.strokeStyle = 'rgba(43,42,34,0.35)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(wx, groundY-1, 5.4, Math.PI, Math.PI*2); ctx.stroke();
+    });
+
+    // pedestal-mounted heavy machine gun in the bed, seen in profile — sized up
+    // noticeably from the truck's own details so it reads as its own weapon,
+    // not just another part of the vehicle
+    const gx = rearX+9; // pedestal position, mid-bed
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(gx-2.4, -8.8, 4.8, 2.6); // pedestal base
+    ctx.strokeStyle = darkCol; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(gx, -8.8); ctx.lineTo(gx, -11.8); ctx.stroke(); // mount post
+    ctx.lineWidth = 3.3;
+    ctx.beginPath(); ctx.moveTo(gx, -11.6); ctx.lineTo(gx+13, -17.8); ctx.stroke(); // barrel, thick and long — angled up/forward over the cab
+    ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(gx+13, -17.8); ctx.lineTo(gx+16, -19.2); ctx.stroke(); // muzzle tip
+    ctx.fillStyle = darkCol;
+    ctx.fillRect(gx-6, -11.2, 4, 4); // ammo box beside the pedestal
+    // gunner: head + crouched torso, braced behind the gun
+    ctx.beginPath(); ctx.arc(gx-3, -14, 1.8, 0, Math.PI*2); ctx.fill();
+    ctx.fillRect(gx-5, -12.6, 3.6, 5);
+
+    // flatbed cargo — varies by truck so a column doesn't read as 3 stamps
+    if(variant===1){
+      // truck 2: a lumpy tarp/cargo bundle draped near the rear of the bed
+      ctx.fillStyle = 'rgba(90,84,68,0.6)';
+      ctx.strokeStyle = 'rgba(43,42,34,0.45)'; ctx.lineWidth = 0.6;
+      ctx.beginPath();
+      ctx.moveTo(rearX+2,-6); ctx.quadraticCurveTo(rearX+4,-9,rearX+7,-8); ctx.quadraticCurveTo(rearX+10,-9.5,rearX+11,-6.5);
+      ctx.lineTo(rearX+11,-5.8); ctx.lineTo(rearX+2,-5.8); ctx.closePath();
+      ctx.fill(); ctx.stroke();
+      ctx.strokeStyle = 'rgba(43,42,34,0.3)'; ctx.lineWidth = 0.5;
+      ctx.beginPath(); ctx.moveTo(rearX+4,-6.2); ctx.lineTo(rearX+4,-8.4); ctx.moveTo(rearX+8,-6.2); ctx.lineTo(rearX+8.6,-8.8); ctx.stroke(); // rope/strap lines over the tarp
+    } else if(variant===2){
+      // truck 3: stacked ammo crates instead, plus a scorch/damage mark on the body
+      [0,1].forEach(i=>{
+        ctx.fillStyle = '#454f4a';
+        ctx.fillRect(rearX+2+i*4.2, -8-i*0.2, 3.6, 2.4);
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 0.5;
+        ctx.strokeRect(rearX+2+i*4.2, -8-i*0.2, 3.6, 2.4);
+      });
+      ctx.fillStyle = 'rgba(43,42,34,0.4)';
+      ctx.beginPath(); ctx.ellipse(-8, -2, 3.4, 2, 0.3, 0, Math.PI*2); ctx.fill(); // scorch/damage mark on the flank
+    } else {
+      // normal: spare tire + tie-down points
+      ctx.fillStyle = darkCol;
+      ctx.beginPath(); ctx.arc(rearX+3.4, -8.2, 2.6, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = '#4a4636';
+      ctx.beginPath(); ctx.arc(rearX+3.4, -8.2, 1.2, 0, Math.PI*2); ctx.fill();
+      ctx.fillStyle = darkCol;
+      [rearX+7.5, -6.5].forEach(tx=>{ ctx.beginPath(); ctx.arc(tx, -6.1, 0.5, 0, Math.PI*2); ctx.fill(); }); // tie-down points
+    }
+
+    ctx.restore();
+  }
+
+  function drawTargetIcon(t, x, y){
+    ctx.save();
+    ctx.translate(x,y);
+    ctx.scale(SCALE, SCALE);
+    const flashCol = t.hitFlash>0 ? 'rgba(161,58,48,'+(0.5*t.hitFlash)+')' : null;
+    ctx.fillStyle = '#2b2a22';
+    ctx.strokeStyle = '#2b2a22';
+    ctx.lineWidth = 1.4;
+
+    switch(t.type.key){
+      case 'soldier':
+        // a small clustered squad instead of one blob — three distinct poses,
+        // not three copies of the same figure
+        [
+          {dx:-8,dy:2,sc:0.8,pose:'A'},
+          {dx:8,dy:3,sc:0.8,pose:'B'},
+          {dx:0,dy:-2,sc:1,pose:'C'}
+        ].forEach(s=>{
+          ctx.save();
+          ctx.translate(s.dx, s.dy);
+          ctx.scale(s.sc, s.sc);
+          if(s.pose==='B') ctx.translate(0, 2.2); // crouched — sits a touch lower
+          if(s.pose==='C') ctx.rotate(0.12); // torso/rifle rotated outward
+
+          const crouch = s.pose==='B' ? 2.6 : 0; // shortens the stance for the crouched pose
+
+          // helmet: domed shell + brim + seam highlight + chin strap + camo band
+          ctx.fillStyle = '#2b2a22';
+          ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 1;
+          ctx.beginPath(); ctx.arc(0,-23.5+crouch*0.4,4.0,Math.PI,0); ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.fillRect(-4.6,-23.5+crouch*0.4,9.2,1.5);
+          ctx.strokeStyle = 'rgba(219,213,189,0.35)'; ctx.lineWidth = 0.7;
+          ctx.beginPath(); ctx.arc(0,-23.5+crouch*0.4,3.2,Math.PI*1.15,Math.PI*1.85); ctx.stroke();
+          ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 0.7;
+          ctx.beginPath(); ctx.moveTo(-2.8,-21.2+crouch*0.4); ctx.quadraticCurveTo(0,-18.4+crouch*0.4,2.8,-21.2+crouch*0.4); ctx.stroke();
+          // camo band around the helmet
+          ctx.strokeStyle = 'rgba(61,68,44,0.9)'; ctx.lineWidth = 1.1;
+          ctx.beginPath(); ctx.moveTo(-3.9,-22.6+crouch*0.4); ctx.lineTo(3.9,-22.6+crouch*0.4); ctx.stroke();
+
+          // torso with armor-plate lines, tapered shoulders
+          ctx.fillStyle = '#454f34';
+          ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 1.2;
+          ctx.beginPath();
+          ctx.moveTo(-3.6,-19+crouch); ctx.lineTo(3.6,-19+crouch); ctx.lineTo(2.8,-9.5+crouch*0.6); ctx.lineTo(-2.8,-9.5+crouch*0.6);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          // body armor plate seams
+          ctx.strokeStyle = 'rgba(43,42,34,0.45)'; ctx.lineWidth = 0.6;
+          ctx.beginPath();
+          ctx.moveTo(-2.6,-16+crouch); ctx.lineTo(2.6,-16+crouch);
+          ctx.moveTo(-2.7,-12.5+crouch*0.7); ctx.lineTo(2.7,-12.5+crouch*0.7);
+          ctx.stroke();
+          // magazine pouches on the chest
+          ctx.fillStyle = '#3a4128';
+          ctx.fillRect(-2.2,-14.5+crouch*0.8,1.8,2.4);
+          ctx.fillRect(0.4,-14.5+crouch*0.8,1.8,2.4);
+          ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 0.5;
+          ctx.strokeRect(-2.2,-14.5+crouch*0.8,1.8,2.4);
+          ctx.strokeRect(0.4,-14.5+crouch*0.8,1.8,2.4);
+          // backpack silhouette (bulge behind the shoulders)
+          ctx.fillStyle = '#333b23';
+          ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 0.7;
+          ctx.beginPath(); ctx.ellipse(0, -17+crouch, 2.6, 3.2, 0, 0.4*Math.PI, 1.6*Math.PI); ctx.fill(); ctx.stroke();
+          // belt line
+          ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.9;
+          ctx.beginPath(); ctx.moveTo(-2.8,-9.7+crouch*0.6); ctx.lineTo(2.8,-9.7+crouch*0.6); ctx.stroke();
+
+          // pants: filled, tapered legs, bent stance — shorter/wider for the crouched pose
+          const kneeY = -1.6-crouch*1.4;
+          ctx.fillStyle = '#3d442c';
+          ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 1;
+          ctx.beginPath();
+          ctx.moveTo(-2.7,-9.5+crouch*0.6); ctx.lineTo(-0.3,-9.5+crouch*0.6); ctx.lineTo(-1.1,kneeY); ctx.lineTo(-3.3,kneeY);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.beginPath();
+          ctx.moveTo(0.3,-9.5+crouch*0.6); ctx.lineTo(2.7,-9.5+crouch*0.6); ctx.lineTo(3.3,kneeY); ctx.lineTo(1.1,kneeY);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          // pant seam creases
+          ctx.strokeStyle = 'rgba(43,42,34,0.35)'; ctx.lineWidth = 0.6;
+          ctx.beginPath(); ctx.moveTo(-1.7,-8.5+crouch*0.6); ctx.lineTo(-2.1,kneeY+0.4); ctx.moveTo(1.7,-8.5+crouch*0.6); ctx.lineTo(2.1,kneeY+0.4); ctx.stroke();
+          // knee pads
+          ctx.fillStyle = 'rgba(43,42,34,0.55)';
+          ctx.beginPath(); ctx.ellipse(-1.9,kneeY-0.6,0.9,1,0,0,Math.PI*2); ctx.fill();
+          ctx.beginPath(); ctx.ellipse(1.9,kneeY-0.6,0.9,1,0,0,Math.PI*2); ctx.fill();
+
+          // boots: wider, dark, flat-soled, with a visible sole line
+          ctx.fillStyle = '#1c1b16';
+          ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 0.9;
+          ctx.beginPath(); ctx.moveTo(-3.6,kneeY); ctx.lineTo(-0.9,kneeY); ctx.lineTo(-0.7,kneeY+2.2); ctx.lineTo(-4.2,kneeY+2.2);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.beginPath(); ctx.moveTo(0.9,kneeY); ctx.lineTo(3.6,kneeY); ctx.lineTo(4.2,kneeY+2.2); ctx.lineTo(0.7,kneeY+2.2);
+          ctx.closePath(); ctx.fill(); ctx.stroke();
+          ctx.strokeStyle = 'rgba(219,213,189,0.3)'; ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.moveTo(-4.1,kneeY+2.1); ctx.lineTo(-0.75,kneeY+2.1); ctx.moveTo(0.85,kneeY+2.1); ctx.lineTo(4.1,kneeY+2.1); ctx.stroke();
+
+          // rifle: pose-dependent angle, plus magazine, stock, and a sling line to the shoulder
+          ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 1.7;
+          let rx1,ry1,rx2,ry2;
+          if(s.pose==='A'){ rx1=-5.5; ry1=-16; rx2=6.5; ry2=-10; } // across the chest, standing upright
+          else if(s.pose==='B'){ rx1=-5; ry1=-11; rx2=7; ry2=-15; } // angled downward from a crouch
+          else { rx1=-6.5; ry1=-15; rx2=8; ry2=-13.5; } // pointed outward
+          ctx.beginPath(); ctx.moveTo(rx1,ry1); ctx.lineTo(rx2,ry2); ctx.stroke();
+          ctx.fillStyle = '#2b2a22';
+          ctx.fillRect(rx1-0.7,ry1-0.8,2,1.8); // stock
+          // magazine hanging below the midpoint of the rifle
+          const mx=(rx1+rx2)/2, my=(ry1+ry2)/2;
+          ctx.fillRect(mx-0.6, my+0.2, 1.2, 2.6);
+          // sling line back to the shoulder
+          ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.6;
+          ctx.beginPath(); ctx.moveTo(rx1,ry1); ctx.lineTo(-1.5,-17+crouch); ctx.stroke();
+
+          ctx.restore();
+        });
+        break;
+      case 'vehicle':
+        drawTechnical(0, 0, 1, 0);
+        break;
+      case 'group':
+        // three technicals staggered slightly, not perfectly aligned — reads as a column, not a stamp.
+        // Each is visually distinct: normal / rotated+darker glass+tarp / damaged+altered antenna+crates
+        [{ox:-27,dy:1.5,rot:0,v:0},{ox:0,dy:-1,rot:0.05,v:1},{ox:27,dy:1.5,rot:0,v:2}].forEach(cfg=>{
+          ctx.save();
+          ctx.translate(cfg.ox, cfg.dy);
+          if(cfg.rot) ctx.rotate(cfg.rot);
+          drawTechnical(0, 0, 0.7, cfg.v);
+          ctx.restore();
+        });
+        break;
+      case 'tank': {
+        const darkCol = '#2b2a22';
+        const trackY = 3;
+        const trackL = -26, trackR = 26;
+
+        // outer track housing (skirt) with a subtle inner shadow
+        ctx.fillStyle = '#1c1b16';
+        ctx.beginPath(); ctx.roundRect ? ctx.roundRect(trackL,-2,trackR-trackL,10,3) : ctx.rect(trackL,-2,trackR-trackL,10);
+        ctx.fill();
+        ctx.fillStyle = 'rgba(0,0,0,0.25)';
+        ctx.fillRect(trackL+2,-1,trackR-trackL-4,2.4); // inner shadow along the top of the housing
+
+        // individual track blocks along the bottom run (10 segments)
+        ctx.strokeStyle = 'rgba(90,88,76,0.4)'; ctx.lineWidth = 0.6;
+        for(let bx=trackL+2; bx<=trackR-2; bx+=(trackR-trackL-4)/10){
+          ctx.beginPath(); ctx.moveTo(bx,5.6); ctx.lineTo(bx,7.4); ctx.stroke();
+        }
+
+        // road wheels (5), return rollers above them, suspension arms to the hull
+        const roadWheelXs = [-19,-10.5,-2,6.5,15];
+        roadWheelXs.forEach(tx=>{
+          ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.8;
+          ctx.beginPath(); ctx.moveTo(tx,-1.5); ctx.lineTo(tx,2.6); ctx.stroke(); // suspension arm
+          ctx.fillStyle = '#3a362a';
+          ctx.beginPath(); ctx.ellipse(tx,3,2.4,2.4,0,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#5c5646';
+          ctx.beginPath(); ctx.ellipse(tx,3,1.1,1.1,0,0,Math.PI*2); ctx.fill();
+        });
+        // return rollers, smaller, riding higher along the top run
+        [-14,3,13].forEach(rx=>{
+          ctx.fillStyle = '#2b2a22';
+          ctx.beginPath(); ctx.ellipse(rx,-3.4,1.5,1.5,0,0,Math.PI*2); ctx.fill();
+        });
+        // drive sprocket (rear, with tooth ticks) and idler wheel (front, plain and slightly larger)
+        ctx.fillStyle = '#3a362a';
+        ctx.beginPath(); ctx.ellipse(trackL+3,3,3,3,0,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 0.6;
+        for(let a=0;a<Math.PI*2;a+=Math.PI/5){ ctx.beginPath(); ctx.moveTo(trackL+3+Math.cos(a)*3, 3+Math.sin(a)*3); ctx.lineTo(trackL+3+Math.cos(a)*3.9, 3+Math.sin(a)*3.9); ctx.stroke(); }
+        ctx.fillStyle = '#3a362a';
+        ctx.beginPath(); ctx.ellipse(trackR-3,3,3.2,3.2,0,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#5c5646';
+        ctx.beginPath(); ctx.ellipse(trackR-3,3,1.3,1.3,0,0,Math.PI*2); ctx.fill();
+
+        // hull with gradient + armor plate seams + weld seams
+        const hullGrad = ctx.createLinearGradient(0,-10,0,0);
+        hullGrad.addColorStop(0,'#5c6a42'); hullGrad.addColorStop(1,'#333c26');
+        ctx.fillStyle = hullGrad;
+        ctx.fillRect(-22,-10,44,10);
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1; ctx.strokeRect(-22,-10,44,10);
+        ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(-8,-10); ctx.lineTo(-8,0); ctx.moveTo(10,-10); ctx.lineTo(10,0); ctx.stroke(); // plate seams
+        ctx.strokeStyle = 'rgba(90,88,76,0.35)'; ctx.lineWidth = 0.5;
+        ctx.setLineDash([1,1]);
+        ctx.beginPath(); ctx.moveTo(-22,-6); ctx.lineTo(22,-6); ctx.stroke(); // weld seam
+        ctx.setLineDash([]);
+        // engine deck (raised rear section) + exhaust + mud guards
+        ctx.fillStyle = '#454f34'; ctx.strokeStyle = darkCol; ctx.lineWidth = 0.8;
+        ctx.fillRect(12,-12,10,2.4); ctx.strokeRect(12,-12,10,2.4);
+        ctx.fillStyle = darkCol;
+        ctx.fillRect(19,-11.4,2.6,1.6); // exhaust housing
+        ctx.fillStyle = 'rgba(74,70,54,0.4)';
+        ctx.beginPath(); ctx.ellipse(21,-9.8,1.8,1,0,0,Math.PI*2); ctx.fill(); // exhaust stain
+        ctx.fillStyle = '#333c26'; ctx.strokeStyle = darkCol; ctx.lineWidth = 0.6;
+        ctx.fillRect(trackL-1,-2.4,4,2); ctx.strokeRect(trackL-1,-2.4,4,2); // front mud guard
+        ctx.fillRect(trackR-3,-2.4,4,2); ctx.strokeRect(trackR-3,-2.4,4,2); // rear mud guard
+        // access hatch on the glacis + towing cable + storage bin/spare equipment
+        ctx.fillStyle = '#454f34'; ctx.strokeStyle = darkCol; ctx.lineWidth = 0.7;
+        ctx.fillRect(-16,-8.4,5,4); ctx.strokeRect(-16,-8.4,5,4);
+        ctx.fillStyle = darkCol; ctx.fillRect(-14,-8.7,1.2,0.6); // hatch hinge
+        ctx.strokeStyle = 'rgba(43,42,34,0.6)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-21,-9); ctx.quadraticCurveTo(-19,-6,-21,-3); ctx.stroke(); // towing cable, looped
+        ctx.fillStyle = '#3d442c'; ctx.strokeStyle = darkCol; ctx.lineWidth = 0.6;
+        ctx.fillRect(1,-9.6,6,3.2); ctx.strokeRect(1,-9.6,6,3.2); // storage bin
+        ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 0.4;
+        ctx.beginPath(); ctx.moveTo(2,-9.6); ctx.lineTo(2,-6.4); ctx.moveTo(4,-9.6); ctx.lineTo(4,-6.4); ctx.moveTo(6,-9.6); ctx.lineTo(6,-6.4); ctx.stroke(); // strapped spare equipment ridges
+
+        // turret ring + turret body + panel seams
+        ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.ellipse(0,-9,15,3,0,0,Math.PI*2); ctx.stroke(); // turret ring where it meets the hull
+        ctx.fillStyle = '#454f34';
+        ctx.beginPath(); ctx.ellipse(0,-12,16,7,0,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1; ctx.stroke();
+        ctx.strokeStyle = 'rgba(43,42,34,0.35)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(-10,-16.5); ctx.lineTo(-8,-6.5); ctx.moveTo(8,-16.5); ctx.lineTo(9,-6.5); ctx.stroke(); // turret panel seams
+
+        // applique armor blocks on the turret face
+        ctx.fillStyle = 'rgba(43,42,34,0.28)';
+        ctx.fillRect(3,-15.6,5,3.2); ctx.fillRect(9,-14.4,4,2.6);
+
+        // tiny tactical marking stencil on the turret flank — kept small per spec
+        ctx.fillStyle = 'rgba(219,213,189,0.4)';
+        ctx.font = 'bold 2.6px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('B-12', -14, -10.5);
+
+        // commander hatch + gunner sight + optics + smoke launchers + antenna
+        ctx.fillStyle = darkCol;
+        ctx.beginPath(); ctx.arc(-6,-13,2.2,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#454f34'; ctx.strokeStyle = darkCol; ctx.lineWidth = 0.7;
+        ctx.fillRect(-2,-17.4,3.4,2.4); ctx.strokeRect(-2,-17.4,3.4,2.4); // gunner sight housing
+        ctx.fillStyle = '#828d80';
+        ctx.beginPath(); ctx.arc(-0.4,-16.2,0.7,0,Math.PI*2); ctx.fill(); // optics lens
+        ctx.fillStyle = darkCol;
+        [0,1,2].forEach(i=>{ ctx.fillRect(9+i*1.6,-19,1,3.4); }); // smoke grenade launcher cluster
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(-9,-15); ctx.lineTo(-11,-24); ctx.stroke();
+
+        // main barrel with muzzle brake + a shorter coaxial machine gun alongside it
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 3;
+        ctx.beginPath(); ctx.moveTo(0,-12); ctx.lineTo(26,-16); ctx.stroke();
+        ctx.fillStyle = darkCol;
+        ctx.fillRect(24,-18,4,4);
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(2,-10.4); ctx.lineTo(14,-12.4); ctx.stroke(); // coaxial weapon
+        break;
+      }
+      case 'plant': {
+        const darkCol = '#2b2a22';
+        // perimeter fence: posts + horizontal rails + a gate + a warning sign
+        ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 1;
+        for(let fx=-34; fx<=34; fx+=10){ if(Math.abs(fx)>5) { ctx.beginPath(); ctx.moveTo(fx,2); ctx.lineTo(fx,-3); ctx.stroke(); } }
+        ctx.strokeStyle = 'rgba(43,42,34,0.3)'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(-34,-2.2); ctx.lineTo(34,-2.2); ctx.moveTo(-34,0.4); ctx.lineTo(34,0.4); ctx.stroke(); // rails
+        ctx.strokeStyle = 'rgba(90,88,76,0.5)'; ctx.lineWidth = 1.4; ctx.setLineDash([3,2]);
+        ctx.beginPath(); ctx.moveTo(-5,2); ctx.lineTo(5,2); ctx.stroke(); ctx.setLineDash([]); // gate gap
+        ctx.fillStyle = 'rgba(196,142,45,0.55)';
+        ctx.fillRect(28,-3,3.6,2.4); ctx.strokeStyle = darkCol; ctx.lineWidth = 0.4; ctx.strokeRect(28,-3,3.6,2.4); // warning sign
+
+        // main building with gradient + wall panel seams
+        const plantGrad = ctx.createLinearGradient(-25,0,25,0);
+        plantGrad.addColorStop(0,'#454f4a'); plantGrad.addColorStop(0.5,'#5c6b63'); plantGrad.addColorStop(1,'#454f4a');
+        ctx.fillStyle = plantGrad;
+        ctx.fillRect(-25,-30,50,30);
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1; ctx.strokeRect(-25,-30,50,30);
+        ctx.strokeStyle = 'rgba(43,42,34,0.3)'; ctx.lineWidth = 0.5;
+        for(let sx=-15; sx<=15; sx+=10){ ctx.beginPath(); ctx.moveTo(sx,-30); ctx.lineTo(sx,0); ctx.stroke(); }
+        // roof cap/parapet
+        ctx.fillStyle = '#333c26';
+        ctx.fillRect(-25,-31.4,50,1.6);
+        // window grid
+        ctx.fillStyle = darkCol;
+        for(let wy=-25; wy<=-8; wy+=8){
+          for(let wx=-18; wx<=18; wx+=9){ ctx.fillRect(wx,wy,4,4); }
+        }
+        // door + loading dock / garage door
+        ctx.fillStyle = darkCol;
+        ctx.fillRect(-4,-10,8,10);
+        ctx.fillStyle = '#3a4640'; ctx.strokeStyle = darkCol; ctx.lineWidth = 0.7;
+        ctx.fillRect(14,-9,9,9); ctx.strokeRect(14,-9,9,9);
+        ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.5;
+        for(let dy=-8;dy<0;dy+=2){ ctx.beginPath(); ctx.moveTo(14,dy); ctx.lineTo(23,dy); ctx.stroke(); } // garage door slats
+        ctx.fillStyle = 'rgba(74,70,54,0.35)';
+        ctx.fillRect(13,-1,11,1.6); // loading dock platform lip
+        // security lights on the wall
+        ctx.fillStyle = darkCol;
+        ctx.fillRect(-22,-27,1.4,1.4); ctx.fillRect(20.6,-27,1.4,1.4);
+        ctx.fillStyle = 'rgba(219,213,189,0.25)';
+        ctx.beginPath(); ctx.arc(-21.3,-25.6,2.4,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(21.3,-25.6,2.4,0,Math.PI*2); ctx.fill();
+        // electrical conduit with junction boxes along the wall
+        ctx.strokeStyle = 'rgba(43,42,34,0.45)'; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.moveTo(-24,-6); ctx.lineTo(-24,-20); ctx.lineTo(-9,-20); ctx.stroke();
+        ctx.fillStyle = darkCol;
+        ctx.fillRect(-25,-20.7,1.6,1.4); ctx.fillRect(-9.8,-20.7,1.6,1.4);
+        // warning stripe along the base
+        ctx.fillStyle = 'rgba(124,46,40,0.5)';
+        ctx.fillRect(-25,-4,50,2);
+        // roof vents + HVAC unit sitting on the roof
+        ctx.fillStyle = '#3a4640'; ctx.strokeStyle = darkCol; ctx.lineWidth = 0.6;
+        ctx.fillRect(-8,-35,7,4); ctx.strokeRect(-8,-35,7,4); // HVAC unit
+        ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 0.4;
+        ctx.beginPath(); ctx.moveTo(-8,-33); ctx.lineTo(-1,-33); ctx.moveTo(-6.5,-35); ctx.lineTo(-6.5,-31); ctx.stroke();
+        ctx.fillStyle = darkCol;
+        ctx.beginPath(); ctx.arc(16,-33,1.8,0,Math.PI*2); ctx.fill(); // roof vent
+        ctx.beginPath(); ctx.arc(16,-33,0.8,0,Math.PI*2); ctx.fillStyle='#4a4636'; ctx.fill();
+        // piping running down from the roof to a ground fuel tank
+        ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(27,-30); ctx.lineTo(27,-6); ctx.lineTo(33,-6); ctx.stroke();
+
+        // smokestacks with drifting smoke wisps
+        ctx.fillStyle = '#454f34';
+        ctx.fillRect(-18,-46,8,18);
+        ctx.fillRect(4,-52,8,24);
+        ctx.strokeStyle = 'rgba(90,88,76,0.5)'; ctx.lineWidth = 2; ctx.setLineDash([2,3]);
+        ctx.beginPath(); ctx.moveTo(-14,-46); ctx.quadraticCurveTo(-20,-56,-12,-62); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(8,-52); ctx.quadraticCurveTo(2,-62,10,-68); ctx.stroke();
+        ctx.setLineDash([]);
+
+        // ground-level industrial clutter: fuel tank, pallets, crates, barrels, parked vehicle, antenna mast
+        ctx.fillStyle = '#454f4a'; ctx.strokeStyle = darkCol; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.ellipse(33,-4,3.2,5,0,0,Math.PI*2); ctx.fill(); ctx.stroke(); // fuel tank (upright cylinder in profile)
+        ctx.strokeStyle = 'rgba(43,42,34,0.35)'; ctx.lineWidth = 0.4;
+        ctx.beginPath(); ctx.moveTo(30.5,-6); ctx.lineTo(35.5,-6); ctx.moveTo(30.5,-2); ctx.lineTo(35.5,-2); ctx.stroke();
+
+        ctx.fillStyle = '#5a4e38'; ctx.strokeStyle = darkCol; ctx.lineWidth = 0.4;
+        for(let i=0;i<3;i++){ ctx.fillRect(-32+i*0.4,-1.4-i*0.3,3,0.5); } // pallet plank stack
+        ctx.fillStyle = '#454f4a';
+        ctx.fillRect(-31,-3.6,3,2.4); ctx.strokeRect(-31,-3.6,3,2.4); // crate on the pallet
+
+        [-27,-24].forEach((bx,i)=>{
+          ctx.fillStyle = '#3a362a'; ctx.strokeStyle = darkCol; ctx.lineWidth = 0.4;
+          ctx.beginPath(); ctx.ellipse(bx,-2.2,1.3,2.2,0,0,Math.PI*2); ctx.fill(); ctx.stroke(); // barrel
+        });
+
+        ctx.fillStyle = '#3d443a'; ctx.strokeStyle = darkCol; ctx.lineWidth = 0.6;
+        ctx.fillRect(37,-6,7,5); ctx.strokeRect(37,-6,7,5); // parked vehicle silhouette
+        ctx.beginPath(); ctx.arc(38.5,-1,1.1,0,Math.PI*2); ctx.fill(); ctx.beginPath(); ctx.arc(42.5,-1,1.1,0,Math.PI*2); ctx.fill();
+
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(-38,2); ctx.lineTo(-38,-22); ctx.stroke(); // antenna mast
+        ctx.beginPath(); ctx.moveTo(-40,-16); ctx.lineTo(-36,-16); ctx.moveTo(-40,-10); ctx.lineTo(-36,-10); ctx.stroke(); // cross bars
+        break;
+      }
+      case 'helo': {
+        const darkCol = '#2b2a22';
+        // tail boom
+        ctx.strokeStyle = darkCol; ctx.lineWidth=1.4;
+        ctx.fillStyle = '#454f34';
+        ctx.fillRect(-38,-30,26,8);
+        // fuselage
+        ctx.beginPath(); ctx.ellipse(0,-26,20,11,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        // side panel seams + access panels
+        ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(-14,-33); ctx.lineTo(-14,-19); ctx.moveTo(-2,-34); ctx.lineTo(-2,-18); ctx.stroke();
+        ctx.strokeStyle = 'rgba(43,42,34,0.3)'; ctx.lineWidth = 0.4;
+        ctx.strokeRect(-11,-30,7,4); // access panel
+        // engine exhaust at the tail-boom junction, with a faint heat stain
+        ctx.fillStyle = darkCol;
+        ctx.fillRect(-20,-32,4,3);
+        ctx.fillStyle = 'rgba(74,70,54,0.3)';
+        ctx.beginPath(); ctx.ellipse(-22,-29,4,2,0,0,Math.PI*2); ctx.fill();
+        // chin-mounted sensor housing (electro-optical ball, common on attack helicopters)
+        ctx.fillStyle = darkCol;
+        ctx.beginPath(); ctx.arc(4,-17.5,2.4,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = '#3a4640';
+        ctx.beginPath(); ctx.arc(5,-17.5,1,0,Math.PI*2); ctx.fill();
+        // cockpit glass — frame, divider, reflection
+        ctx.fillStyle = '#828d80';
+        ctx.beginPath(); ctx.ellipse(10,-27,7,6,0,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1; ctx.stroke(); // cockpit framing
+        ctx.strokeStyle = 'rgba(43,42,34,0.5)'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(10,-33); ctx.lineTo(10,-21); ctx.stroke(); // center divider
+        ctx.strokeStyle = '#aab3a0'; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.moveTo(8,-30); ctx.lineTo(12,-25); ctx.stroke(); // reflection streak
+
+        // stub wings with rocket pod tubes, a missile rail, and individual missiles
+        ctx.fillStyle = '#454f34';
+        ctx.fillRect(-10,-20,26,4);
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1; ctx.strokeRect(-10,-20,26,4);
+        [-4,12].forEach(wx=>{
+          // rocket pod: cluster of small tube openings instead of a plain ellipse
+          ctx.fillStyle = darkCol;
+          ctx.beginPath(); ctx.ellipse(wx,-14,3,5,0,0,Math.PI*2); ctx.fill();
+          ctx.fillStyle = '#111';
+          [[-1.2,-16],[1.2,-16],[-1.2,-12],[1.2,-12],[0,-14]].forEach(([tx,ty])=>{
+            ctx.beginPath(); ctx.arc(wx+tx*0.6,ty,0.6,0,Math.PI*2); ctx.fill();
+          });
+          // missile rail below the pod + one individual missile with fins
+          ctx.strokeStyle = 'rgba(43,42,34,0.6)'; ctx.lineWidth = 0.8;
+          ctx.beginPath(); ctx.moveTo(wx-2.5,-9); ctx.lineTo(wx+2.5,-9); ctx.stroke();
+          ctx.fillStyle = darkCol;
+          ctx.fillRect(wx-0.8,-9,1.6,4.4);
+          ctx.beginPath(); ctx.moveTo(wx-0.8,-4.6); ctx.lineTo(wx+0.8,-4.6); ctx.lineTo(wx,-3.2); ctx.closePath(); ctx.fill(); // nose cone
+          ctx.fillStyle = '#7c2e28';
+          ctx.fillRect(wx-1.4,-6.4,0.8,1.4); ctx.fillRect(wx+0.6,-6.4,0.8,1.4); // small tail fins
+        });
+
+        // tail rotor as a small blurred disc instead of a plain line
+        ctx.fillStyle = 'rgba(43,42,34,0.35)';
+        ctx.beginPath(); ctx.ellipse(-38,-26,2.5,9,0,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(43,42,34,0.6)'; ctx.lineWidth = 0.8; ctx.stroke();
+
+        // main rotor: multiple overlapping translucent arcs (angular variation) + hub + shadow
+        ctx.fillStyle = 'rgba(43,42,34,0.10)';
+        ctx.beginPath(); ctx.ellipse(2,-39,30,8,0.06,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(43,42,34,0.15)';
+        ctx.beginPath(); ctx.ellipse(-1,-40.5,32,5,-0.04,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.ellipse(-1,-40.5,32,5,-0.04,0,Math.PI*2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(43,42,34,0.28)'; ctx.lineWidth = 0.8;
+        [[-30,-41],[30,-39],[-15,-43],[15,-37]].forEach(pt=>{
+          ctx.beginPath(); ctx.moveTo(0,-40); ctx.lineTo(pt[0],pt[1]); ctx.stroke();
+        });
+        ctx.fillStyle = darkCol;
+        ctx.beginPath(); ctx.arc(0,-40,1.4,0,Math.PI*2); ctx.fill(); // rotor hub
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.moveTo(0,-32); ctx.lineTo(0,-40); ctx.stroke();
+        // faint rotor-shadow cast on the fuselage below
+        ctx.fillStyle = 'rgba(33,31,25,0.12)';
+        ctx.beginPath(); ctx.ellipse(0,-31,18,2.4,0,0,Math.PI*2); ctx.fill();
+
+        // skids
+        ctx.strokeStyle = darkCol; ctx.lineWidth=2;
+        ctx.beginPath(); ctx.moveTo(-14,-15); ctx.lineTo(14,-15); ctx.stroke();
+        break;
+      }
+      case 'jet': {
+        const darkCol = '#2b2a22';
+        // motion streak lines trailing behind, selling speed
+        ctx.strokeStyle = 'rgba(43,42,34,0.3)'; ctx.lineWidth = 1.2;
+        [[-14,10,-20,22],[0,12,2,26],[14,10,20,22]].forEach(s=>{
+          ctx.beginPath(); ctx.moveTo(s[0],s[1]); ctx.lineTo(s[2],s[3]); ctx.stroke();
+        });
+        // fuselage
+        ctx.fillStyle = '#454f34';
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1.3;
+        ctx.beginPath();
+        ctx.moveTo(0,-40); ctx.lineTo(8,-10); ctx.lineTo(4,4); ctx.lineTo(-4,4); ctx.lineTo(-8,-10);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        // panel lines along the fuselage
+        ctx.strokeStyle = 'rgba(43,42,34,0.35)'; ctx.lineWidth = 0.4;
+        ctx.beginPath(); ctx.moveTo(0,-38); ctx.lineTo(0,-2); ctx.moveTo(-5,-14); ctx.lineTo(5,-14); ctx.moveTo(-5.5,-4); ctx.lineTo(5.5,-4); ctx.stroke();
+        // intake scoops at the wing root, either side
+        ctx.fillStyle = darkCol;
+        ctx.beginPath(); ctx.moveTo(-6,-8); ctx.lineTo(-9,-6); ctx.lineTo(-6,-4); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(6,-8); ctx.lineTo(9,-6); ctx.lineTo(6,-4); ctx.closePath(); ctx.fill();
+        // canopy glass — frame, reflection
+        ctx.fillStyle = '#828d80';
+        ctx.beginPath(); ctx.ellipse(0,-27,3.4,8,0,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 0.8; ctx.stroke();
+        ctx.strokeStyle = 'rgba(43,42,34,0.6)'; ctx.lineWidth = 1; // cockpit frame, distinct from the glass edge
+        ctx.beginPath(); ctx.ellipse(0,-27,4,8.8,0,0,Math.PI*2); ctx.stroke();
+        ctx.strokeStyle = '#aab3a0'; ctx.lineWidth = 1.2;
+        ctx.beginPath(); ctx.moveTo(-1.5,-32); ctx.lineTo(-1,-22); ctx.stroke();
+
+        // wings with trailing-edge control surfaces (ailerons)
+        ctx.fillStyle = '#454f34'; ctx.strokeStyle = darkCol; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-8,-8); ctx.lineTo(-30,4); ctx.lineTo(-6,0); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(8,-8); ctx.lineTo(30,4); ctx.lineTo(6,0); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = 'rgba(43,42,34,0.45)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(-24,2.6); ctx.lineTo(-14,-1.6); ctx.moveTo(24,2.6); ctx.lineTo(14,-1.6); ctx.stroke(); // aileron hinge lines
+
+        // hardpoint pylons + underwing missiles with fins
+        ctx.fillStyle = darkCol;
+        ctx.fillRect(-20.6,-1.2,1.2,1.8); ctx.fillRect(19.4,-1.2,1.2,1.8); // pylons
+        ctx.fillRect(-20,0,3,7);
+        ctx.fillRect(17,0,3,7);
+        ctx.fillStyle = '#7c2e28';
+        ctx.beginPath(); ctx.moveTo(-20,0); ctx.lineTo(-18.5,-2.5); ctx.lineTo(-17,0); ctx.closePath(); ctx.fill();
+        ctx.beginPath(); ctx.moveTo(17,0); ctx.lineTo(18.5,-2.5); ctx.lineTo(20,0); ctx.closePath(); ctx.fill();
+        ctx.fillStyle = darkCol;
+        ctx.fillRect(-20.6,5.4,1.2,1.6); ctx.fillRect(-17.2,5.4,1.2,1.6); // missile fins
+        ctx.fillRect(17.4,5.4,1.2,1.6); ctx.fillRect(20.8,5.4,1.2,1.6);
+
+        // tail fin (vertical stabilizer) with a rudder control-surface line
+        ctx.fillStyle = '#454f34'; ctx.strokeStyle = darkCol; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-3,2); ctx.lineTo(0,-10); ctx.lineTo(3,2); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 0.4;
+        ctx.beginPath(); ctx.moveTo(0,-9); ctx.lineTo(0,1.6); ctx.stroke();
+
+        // exhaust nozzle ring, then the layered afterburner: bright core -> orange/red plume -> faint trail
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1.4;
+        ctx.beginPath(); ctx.ellipse(0,4.6,3.6,1.6,0,0,Math.PI*2); ctx.stroke();
+        const trailGrad = ctx.createRadialGradient(0,14,0, 0,14,16);
+        trailGrad.addColorStop(0,'rgba(124,46,40,0.16)'); trailGrad.addColorStop(1,'rgba(124,46,40,0)');
+        ctx.fillStyle = trailGrad;
+        ctx.beginPath(); ctx.ellipse(0,14,5,16,0,0,Math.PI*2); ctx.fill(); // faint exhaust trail, longest layer
+        const flameGrad = ctx.createRadialGradient(0,8,0, 0,8,9);
+        flameGrad.addColorStop(0,'rgba(196,142,45,0.9)');
+        flameGrad.addColorStop(0.5,'rgba(124,46,40,0.6)');
+        flameGrad.addColorStop(1,'rgba(124,46,40,0)');
+        ctx.fillStyle = flameGrad;
+        ctx.beginPath(); ctx.ellipse(0,8,7,9,0,0,Math.PI*2); ctx.fill(); // orange/red plume
+        ctx.fillStyle = 'rgba(219,213,189,0.85)';
+        ctx.beginPath(); ctx.ellipse(0,5.4,2,2.6,0,0,Math.PI*2); ctx.fill(); // bright engine core
+        break;
+      }
+      case 'uas': {
+        const darkCol = '#2b2a22';
+        // long straight wings (Predator-style) with a shaded underside + ribs + control surfaces
+        ctx.fillStyle = '#3f4840';
+        ctx.fillRect(-36,-18,72,5);
+        ctx.fillStyle = '#454f34';
+        ctx.fillRect(-36,-18,72,3);
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1; ctx.strokeRect(-36,-18,72,5);
+        ctx.strokeStyle = 'rgba(43,42,34,0.35)'; ctx.lineWidth = 0.4;
+        for(let rx=-32;rx<=32;rx+=8){ if(Math.abs(rx)>5){ ctx.beginPath(); ctx.moveTo(rx,-18); ctx.lineTo(rx,-13); ctx.stroke(); } } // wing ribs
+        ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(-30,-13.2); ctx.lineTo(-14,-13.2); ctx.moveTo(14,-13.2); ctx.lineTo(30,-13.2); ctx.stroke(); // control surface hinge lines
+        // wing-mounted hardpoints + missile rail + missiles
+        [-24,24].forEach(hx=>{
+          ctx.fillStyle = darkCol;
+          ctx.fillRect(hx-1.5,-13,3,5);
+          ctx.strokeStyle = 'rgba(43,42,34,0.6)'; ctx.lineWidth = 0.5;
+          ctx.beginPath(); ctx.moveTo(hx-2,-8.2); ctx.lineTo(hx+2,-8.2); ctx.stroke(); // missile rail
+          ctx.fillStyle = '#7c2e28';
+          ctx.beginPath(); ctx.moveTo(hx-1.5,-8); ctx.lineTo(hx,-5.5); ctx.lineTo(hx+1.5,-8); ctx.closePath(); ctx.fill();
+        });
+        // fuselage with subtle two-tone shading + panel seams + small access panels
+        const uasGrad = ctx.createLinearGradient(-7,0,7,0);
+        uasGrad.addColorStop(0,'#454f4a'); uasGrad.addColorStop(0.5,'#5c6b63'); uasGrad.addColorStop(1,'#454f4a');
+        ctx.fillStyle = uasGrad;
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1.3;
+        ctx.beginPath(); ctx.ellipse(0,-16,7,22,0,0,Math.PI*2); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = 'rgba(43,42,34,0.3)'; ctx.lineWidth = 0.4;
+        ctx.beginPath(); ctx.moveTo(-3.5,-30); ctx.lineTo(-3.5,-2); ctx.moveTo(3.5,-30); ctx.lineTo(3.5,-2); ctx.stroke();
+        ctx.strokeStyle = 'rgba(43,42,34,0.35)'; ctx.lineWidth = 0.4;
+        ctx.strokeRect(-2,-24,4,3); // small access panel
+        // antenna stub on the spine
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(1.5,-20); ctx.lineTo(3,-23.4); ctx.stroke();
+        // landing gear — nose wheel and rear pair, with reinforced struts
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1.1;
+        ctx.beginPath(); ctx.moveTo(0,-30); ctx.lineTo(0,-25); ctx.stroke();
+        ctx.fillStyle = darkCol;
+        ctx.beginPath(); ctx.arc(0,-24,1.6,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 1.1;
+        ctx.beginPath(); ctx.moveTo(-3,-8); ctx.lineTo(-3,-3); ctx.moveTo(3,-8); ctx.lineTo(3,-3); ctx.stroke();
+        ctx.fillStyle = darkCol;
+        ctx.beginPath(); ctx.arc(-3,-2,1.4,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(3,-2,1.4,0,Math.PI*2); ctx.fill();
+        // more defined tail — inverted-V plus a small vertical stabilizer, with a control-surface line
+        ctx.fillStyle = '#454f34'; ctx.strokeStyle = darkCol; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-9,0); ctx.lineTo(9,0); ctx.lineTo(0,12); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(-2,0); ctx.lineTo(0,-9); ctx.lineTo(2,0); ctx.closePath(); ctx.fill(); ctx.stroke();
+        ctx.strokeStyle = 'rgba(43,42,34,0.4)'; ctx.lineWidth = 0.4;
+        ctx.beginPath(); ctx.moveTo(0,9.4); ctx.lineTo(-6,1.8); ctx.moveTo(0,9.4); ctx.lineTo(6,1.8); ctx.stroke();
+        // pusher engine nacelle + exhaust at the tail, between the V-tail struts
+        ctx.fillStyle = darkCol;
+        ctx.beginPath(); ctx.ellipse(0,4,2.2,3,0,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle = 'rgba(90,88,76,0.4)'; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.arc(0,6.4,1.6,0,Math.PI*2); ctx.stroke(); // prop disc blur
+
+        // sensor ball nose — outer housing, dark sensor window, small highlight (the "face")
+        ctx.fillStyle = '#3a4640';
+        ctx.beginPath(); ctx.arc(0,-36,3.4,0,Math.PI*2); ctx.fill();
+        ctx.strokeStyle = darkCol; ctx.lineWidth = 0.8; ctx.stroke();
+        ctx.fillStyle = darkCol;
+        ctx.beginPath(); ctx.arc(0.6,-35.4,2,0,Math.PI*2); ctx.fill(); // sensor window
+        ctx.fillStyle = 'rgba(170,179,160,0.6)';
+        ctx.beginPath(); ctx.arc(-0.1,-36.1,0.6,0,Math.PI*2); ctx.fill(); // small highlight
+        break;
+      }
+      case 'tankColumn':
+        // each tank sits at a slightly different angle — reads as a column moving in
+        // formation rather than three identical stamps
+        [{ox:-27,ang:-0.09,dy:2},{ox:0,ang:0.04,dy:-2},{ox:27,ang:-0.05,dy:2}].forEach(cfg=>{
+          ctx.save();
+          ctx.translate(cfg.ox, cfg.dy);
+          ctx.rotate(cfg.ang);
+          ctx.fillStyle = '#2b2a22';
+          ctx.fillRect(-12,-2,24,7);
+          ctx.fillStyle = '#454f34';
+          ctx.fillRect(-9,-9,18,8);
+          ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 0.8; ctx.strokeRect(-9,-9,18,8);
+          ctx.fillStyle = '#454f34';
+          ctx.beginPath(); ctx.ellipse(0,-11,6,4,0,0,Math.PI*2); ctx.fill();
+          ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 0.8; ctx.stroke();
+          ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 1.6;
+          ctx.beginPath(); ctx.moveTo(0,-11); ctx.lineTo(11,-14); ctx.stroke();
+          ctx.restore();
+        });
+        break;
+      case 'hvt':
+        // a single dignitary figure, not a squad — sash, cap, briefcase
+        ctx.fillStyle = '#2b2a22';
+        // peaked cap + badge
+        ctx.beginPath(); ctx.arc(0,-24,3.6,Math.PI,0); ctx.closePath(); ctx.fill();
+        ctx.fillRect(-4.2,-24,8.4,1.6);
+        ctx.fillStyle = '#7c2e28';
+        ctx.fillRect(-4.2,-25.6,8.4,1.6); // cap band, red accent
+        ctx.fillStyle = '#c48e2d';
+        ctx.beginPath(); ctx.arc(0,-24.8,0.9,0,Math.PI*2); ctx.fill(); // cap badge
+        // torso — long coat silhouette, straighter/formal stance than a soldier
+        ctx.fillStyle = '#3d442c';
+        ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(-4,-20); ctx.lineTo(4,-20); ctx.lineTo(3.2,-2); ctx.lineTo(-3.2,-2);
+        ctx.closePath(); ctx.fill(); ctx.stroke();
+        // collar notch + lapels
+        ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 0.8;
+        ctx.beginPath(); ctx.moveTo(-1.6,-20); ctx.lineTo(0,-18.2); ctx.lineTo(1.6,-20); ctx.stroke();
+        ctx.strokeStyle = 'rgba(43,42,34,0.55)'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(-1.2,-18.6); ctx.lineTo(-2.6,-13); ctx.moveTo(1.2,-18.6); ctx.lineTo(2.6,-13); ctx.stroke();
+        // coat buttons
+        ctx.fillStyle = '#c48e2d';
+        [-15,-11.5,-8,-4.5].forEach(by=>{ ctx.beginPath(); ctx.arc(0,by,0.4,0,Math.PI*2); ctx.fill(); });
+        // gold sash — the strongest gold element on the board: wide, bright, with a highlight edge and a medal pin
+        ctx.strokeStyle = '#c48e2d'; ctx.lineWidth = 2.8;
+        ctx.beginPath(); ctx.moveTo(-3.6,-19); ctx.lineTo(3,-4); ctx.stroke();
+        ctx.strokeStyle = 'rgba(255,224,150,0.75)'; ctx.lineWidth = 0.9;
+        ctx.beginPath(); ctx.moveTo(-3.4,-18.6); ctx.lineTo(2.8,-4.6); ctx.stroke(); // bright highlight edge down the sash
+        ctx.fillStyle = '#e0b04a';
+        ctx.beginPath(); ctx.arc(-2.6,-16.4,1.1,0,Math.PI*2); ctx.fill(); // medal/pin where the sash crosses the chest
+        ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 0.4; ctx.stroke();
+        // gloved hands near the briefcase grip
+        ctx.fillStyle = '#d9d3bd';
+        ctx.beginPath(); ctx.arc(4.4,-8.2,1,0,Math.PI*2); ctx.fill();
+        // legs + shoes
+        ctx.fillStyle = '#2b2a22';
+        ctx.fillRect(-2.8,-2,2.4,6.4);
+        ctx.fillRect(0.4,-2,2.4,6.4);
+        ctx.beginPath(); ctx.ellipse(-1.6,4.6,1.7,0.8,0,0,Math.PI*2); ctx.fill(); // shoe
+        ctx.beginPath(); ctx.ellipse(1.6,4.6,1.7,0.8,0,0,Math.PI*2); ctx.fill();
+        // briefcase with a proper handle loop
+        ctx.fillStyle = '#2b2a22';
+        ctx.fillRect(4.2,-9,5,4.4);
+        ctx.strokeStyle = 'rgba(219,213,189,0.4)'; ctx.lineWidth = 0.6;
+        ctx.beginPath(); ctx.moveTo(4.2,-6.8); ctx.lineTo(9.2,-6.8); ctx.stroke();
+        ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 0.7;
+        ctx.beginPath(); ctx.arc(6.7,-9.6,1.2,Math.PI,0); ctx.stroke(); // handle loop
+        break;
+      case 'crate':
+        ctx.fillStyle = '#6b6142';
+        ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 1.4;
+        ctx.fillRect(-14,-20,28,20);
+        ctx.strokeRect(-14,-20,28,20);
+        ctx.strokeRect(-14,-12,28,12); // lid seam
+        // corner reinforcement brackets (corner guards)
+        ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 1.8;
+        ctx.beginPath();
+        ctx.moveTo(-14,-16); ctx.lineTo(-14,-20); ctx.lineTo(-10,-20);
+        ctx.moveTo(14,-16); ctx.lineTo(14,-20); ctx.lineTo(10,-20);
+        ctx.moveTo(-14,-4); ctx.lineTo(-14,0); ctx.lineTo(-10,0);
+        ctx.moveTo(14,-4); ctx.lineTo(14,0); ctx.lineTo(10,0);
+        ctx.stroke();
+        // hinges along the back top edge + clasps on the front face
+        ctx.fillStyle = '#2b2a22';
+        ctx.fillRect(-9,-20.6,2.4,1.2); ctx.fillRect(6.6,-20.6,2.4,1.2);
+        ctx.fillRect(-1.2,-12.8,2.4,1.6); // front clasp on the lid seam
+        // side carry handle cutouts
+        ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.arc(-14,-9,1.8,Math.PI*0.5,Math.PI*1.5); ctx.stroke();
+        ctx.beginPath(); ctx.arc(14,-9,1.8,Math.PI*1.5,Math.PI*0.5); ctx.stroke();
+        // rope/strapping across the crate
+        ctx.strokeStyle = 'rgba(90,84,60,0.7)'; ctx.lineWidth = 1;
+        ctx.beginPath(); ctx.moveTo(-10,-20); ctx.lineTo(-10,0); ctx.moveTo(10,-20); ctx.lineTo(10,0); ctx.stroke();
+        // chipped paint flecks
+        ctx.fillStyle = 'rgba(150,140,105,0.35)';
+        ctx.beginPath(); ctx.arc(-6,-17,0.7,0,Math.PI*2); ctx.fill();
+        ctx.beginPath(); ctx.arc(11,-5,0.6,0,Math.PI*2); ctx.fill();
+        // pallet underneath
+        ctx.strokeStyle = 'rgba(58,52,38,0.6)'; ctx.lineWidth = 1.2;
+        for(let px=-13; px<=13; px+=5.2){ ctx.beginPath(); ctx.moveTo(px,0); ctx.lineTo(px,2.4); ctx.stroke(); }
+        ctx.beginPath(); ctx.moveTo(-14,2.4); ctx.lineTo(14,2.4); ctx.stroke();
+        // small hazard marking
+        ctx.fillStyle = 'rgba(196,142,45,0.6)'; ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 0.3;
+        ctx.beginPath(); ctx.moveTo(11,-19); ctx.lineTo(13,-16.4); ctx.lineTo(9,-16.4); ctx.closePath(); ctx.fill(); ctx.stroke();
+        // supply cross
+        ctx.fillStyle = '#dbd5bd';
+        ctx.fillRect(-3,-18,6,16);
+        ctx.fillRect(-12,-12,24,6);
+        // stenciled marking + serial number
+        ctx.fillStyle = 'rgba(43,42,34,0.65)';
+        ctx.font = 'bold 5px Courier New';
+        ctx.textAlign = 'center';
+        ctx.fillText('SUPPLY', 0, -1.5);
+        ctx.font = '2.6px Courier New';
+        ctx.fillStyle = 'rgba(43,42,34,0.5)';
+        ctx.fillText('SN-4471', -9, -1.5);
+        break;
+    }
+    if(flashCol){
+      ctx.fillStyle = flashCol;
+      ctx.fillRect(-30,-56,60,56);
+    }
+    ctx.restore();
+  }
+
+  function drawTargets(){
+    const now = performance.now();
+    const jammed = state.commsJammedUntil > now;
+    const sorted = [...state.targets].sort((a,b)=> (a.col+a.lane)-(b.col+b.lane));
+    for(const t of sorted){
+      const p = toScreen(t.col, t.lane);
+      drawTargetIcon(t, p.x, p.y);
+
+      if(t.type.isHVT && !jammed && FEATURES.SPAWN_TELEGRAPHS){
+        // pulsing gold ring calling out the priority target
+        const pulse = 0.5+0.5*Math.sin(now/220);
+        ctx.save();
+        ctx.strokeStyle = 'rgba(196,142,45,'+(0.55+0.35*pulse)+')';
+        ctx.setLineDash([4,3]);
+        ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(p.x, p.y-20*SCALE, 30*SCALE, 0, Math.PI*2); ctx.stroke();
+        ctx.restore();
+      }
+
+      // comms jammed: silhouette stays visible, but all target intel disappears
+      if(jammed) continue;
+
+      // name label
+      ctx.font = (9*SCALE)+'px Courier New';
+      ctx.fillStyle = '#2b2a22';
+      ctx.textAlign = 'center';
+      ctx.fillText(t.type.name, p.x, p.y-64*SCALE);
+
+      // hp bar
+      const barW = 46*SCALE;
+      ctx.fillStyle = 'rgba(179,171,141,0.9)';
+      ctx.fillRect(p.x-barW/2, p.y-60*SCALE, barW, 5*SCALE);
+      ctx.fillStyle = '#7c2e28';
+      ctx.fillRect(p.x-barW/2, p.y-60*SCALE, barW*Math.max(0,t.hp/t.maxHp), 5*SCALE);
+      ctx.strokeStyle='#2b2a22'; ctx.lineWidth=0.8;
+      ctx.strokeRect(p.x-barW/2, p.y-60*SCALE, barW, 5*SCALE);
+
+      // status bar: arming (olive, filling) until spin-up completes, then solid pulsing red while actively firing
+      const armed = t.age >= t.type.spinUp;
+      ctx.fillStyle = 'rgba(179,171,141,0.9)';
+      ctx.fillRect(p.x-barW/2, p.y-53*SCALE, barW, 3*SCALE);
+      if(!armed){
+        ctx.fillStyle = '#454f34';
+        ctx.fillRect(p.x-barW/2, p.y-53*SCALE, barW*Math.min(1,t.age/t.type.spinUp), 3*SCALE);
+      } else {
+        const pulse = 0.6 + 0.4*Math.sin(performance.now()/160);
+        ctx.fillStyle = 'rgba(124,46,40,'+pulse+')';
+        ctx.fillRect(p.x-barW/2, p.y-53*SCALE, barW, 3*SCALE);
+      }
+    }
+  }
+
+  function drawParticles(){
+    for(const p of state.particles){
+      const f = Math.min(1, p.t/p.dur);
+
+      // kamikaze path: straight up to altitude, then one straight dive onto the target
+      let bx, by;
+      if(f < 0.3){
+        const lf = f/0.3;
+        bx = p.x0; by = p.y0 + (p.cruiseY-p.y0)*lf;
+      } else {
+        const lf = (f-0.3)/0.7;
+        bx = p.x0 + (p.x1-p.x0)*lf; by = p.cruiseY + (p.y1-p.cruiseY)*lf;
+      }
+
+      // flock spreads out after takeoff, holds formation through the dive, tightens back up on final impact
+      let spread;
+      if(f < 0.3) spread = f/0.3;
+      else if(f < 0.85) spread = 1;
+      else spread = Math.max(0, 1-(f-0.85)/0.15);
+
+      const bob = Math.sin(f*18 + p.phase) * 2.2 * SCALE * spread;
+
+      const x = bx + p.fx*spread;
+      const y = by + p.fy*spread + bob;
+
+      ctx.fillStyle = 'rgba(43,42,34,'+(0.85-f*0.15)+')';
+      ctx.beginPath(); ctx.arc(x,y,p.r,0,Math.PI*2); ctx.fill();
+    }
+  }
+
+  function drawExplosions(){
+    for(const ex of state.explosions){
+      const f = Math.min(1, ex.t/ex.dur);
+      const radius = ex.maxRadius * (0.3+0.7*f);
+      const alpha = 1-f;
+
+      const grad = ctx.createRadialGradient(ex.x,ex.y,0, ex.x,ex.y, radius);
+      grad.addColorStop(0, 'rgba(74,70,54,'+(0.55*alpha)+')');
+      grad.addColorStop(0.6, 'rgba(43,42,34,'+(0.35*alpha)+')');
+      grad.addColorStop(1, 'rgba(43,42,34,0)');
+      ctx.fillStyle = grad;
+      ctx.beginPath(); ctx.arc(ex.x,ex.y,radius,0,Math.PI*2); ctx.fill();
+
+      if(f<0.35){
+        const flashAlpha = 1-f/0.35;
+        ctx.fillStyle = 'rgba(219,213,189,'+(0.8*flashAlpha)+')';
+        ctx.beginPath(); ctx.arc(ex.x,ex.y,radius*0.35,0,Math.PI*2); ctx.fill();
+        ctx.fillStyle = 'rgba(124,46,40,'+(0.5*flashAlpha)+')';
+        ctx.beginPath(); ctx.arc(ex.x,ex.y,radius*0.5,0,Math.PI*2); ctx.fill();
+      }
+    }
+  }
+
+  function drawTelegraphs(){
+    const now = performance.now();
+    for(const g of state.telegraphs){
+      const f = Math.min(1, (now-g.born)/g.dur);
+      const p = toScreen(g.col, g.lane);
+      const pulse = 0.45+0.25*Math.sin(now/90);
+      const isCrate = !!g.type.isCrate;
+      const warnColor = isCrate ? '196,142,45' : '124,46,40';
+
+      // faint silhouette of what's about to land, fading in as it gets closer
+      ctx.save();
+      ctx.globalAlpha = pulse*(0.35+0.5*f);
+      drawTargetIcon({type:g.type, hitFlash:0}, p.x, p.y);
+      ctx.restore();
+
+      // dashed warning ring + label
+      ctx.save();
+      ctx.strokeStyle = 'rgba('+warnColor+','+(0.4+0.3*Math.sin(now/90))+')';
+      ctx.setLineDash([4,4]);
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y-14*SCALE, 26*SCALE, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+
+      ctx.font = (9*SCALE)+'px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba('+warnColor+',0.85)';
+      ctx.fillText(isCrate ? 'SUPPLY INCOMING' : 'INCOMING', p.x, p.y-46*SCALE);
+    }
+  }
+
+  function drawCrates(){
+    const now = performance.now();
+    for(const c of state.crates){
+      const p = toScreen(c.col, c.lane);
+      const bob = Math.sin(now/260)*3*SCALE;
+
+      drawTargetIcon({type:c.type, hitFlash:0}, p.x, p.y+bob);
+
+      if(!FEATURES.SPAWN_TELEGRAPHS) continue;
+
+      ctx.save();
+      ctx.strokeStyle = 'rgba(196,142,45,'+(0.5+0.3*Math.sin(now/200))+')';
+      ctx.setLineDash([5,4]);
+      ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.x, p.y-14*SCALE+bob, 24*SCALE, 0, Math.PI*2); ctx.stroke();
+      ctx.restore();
+
+      ctx.font = (9*SCALE)+'px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = 'rgba(196,142,45,0.9)';
+      ctx.fillText('SUPPLY', p.x, p.y-46*SCALE+bob);
+    }
+  }
+
+  function draw(){
+    const wobbleMag = state.levelWobble.active ? state.levelWobble.mag : 0;
+    const totalShake = Math.min(20, state.shakeMag + wobbleMag);
+    const shaking = totalShake>0.05;
+    let shakeDX=0, shakeDY=0;
+    if(shaking){
+      shakeDX = (Math.random()*2-1)*totalShake;
+      shakeDY = (Math.random()*2-1)*totalShake;
+      ctx.save();
+      ctx.translate(shakeDX, shakeDY);
+    }
+    drawField(shakeDX, shakeDY);
+    if(FEATURES.SPAWN_TELEGRAPHS) drawTelegraphs();
+    drawCrates();
+    drawTargets();
+    drawPlayer();
+    drawParticles();
+    drawExplosions();
+    if(shaking) ctx.restore();
+  }
+
+  // ---------- LOW-HEALTH HEARTBEAT ----------
+  let lastBeatCycle = -1;
+  function updateHeartbeat(now){
+    const el = document.getElementById('heartbeatVignette');
+    if(!state.running || state.inBanner || state.paused){ el.style.opacity = 0; lastBeatCycle = -1; return; }
+
+    const frac = state.health/state.maxHealth;
+    if(frac >= 0.3){ el.style.opacity = 0; lastBeatCycle = -1; return; }
+
+    const severity = 1 - Math.max(0, frac/0.3); // 0 at 30% health, 1 at 0%
+    const cycle = 900 - severity*400;            // speeds up as health drops: 900ms -> 500ms
+    const t = now % cycle;
+
+    function wrapPulse(center, width){
+      let d = Math.abs(t-center) % cycle;
+      d = Math.min(d, cycle-d);
+      return d>width ? 0 : 1-d/width;
+    }
+    const amp = Math.max(wrapPulse(0,130), wrapPulse(cycle*0.30,100));
+    const maxOpacity = 0.16 + severity*0.34;
+    el.style.opacity = (amp*maxOpacity).toFixed(3);
+
+    const cycleIndex = Math.floor(now/cycle);
+    if(cycleIndex !== lastBeatCycle){
+      lastBeatCycle = cycleIndex;
+      SFX.heartbeat();
+      setTimeout(()=>{ if(state.running && !state.paused) SFX.heartbeat(); }, cycle*0.30);
+    }
+  }
+
+  // ---------- LOW-ARSENAL / LOW-HEALTH WARNING BORDERS ----------
+  let lastArsenalAlarmCycle = -1;
+  function updateWarnings(now){
+    const arsenalEl = document.getElementById('arsenalWarningBorder');
+    const healthEl = document.getElementById('healthWarningBorder');
+
+    if(!state.running || state.inBanner || state.paused){
+      arsenalEl.style.opacity = 0; healthEl.style.opacity = 0;
+      lastArsenalAlarmCycle = -1;
+      return;
+    }
+
+    // low arsenal: pulsing amber border + repeating alarm chirp
+    const arsenalFrac = state.arsenal/state.arsenalCap;
+    if(arsenalFrac < 0.15){
+      const severity = 1 - Math.max(0, arsenalFrac/0.15);
+      const pulse = 0.5+0.5*Math.sin(now/220);
+      arsenalEl.style.opacity = ((0.25+severity*0.55)*pulse).toFixed(3);
+      const cycle = 1100;
+      const idx = Math.floor(now/cycle);
+      if(idx !== lastArsenalAlarmCycle){ lastArsenalAlarmCycle = idx; SFX.alarm(); }
+    } else {
+      arsenalEl.style.opacity = 0;
+      lastArsenalAlarmCycle = -1;
+    }
+
+    // critical health: an extra pulsing red border layered on top of the heartbeat vignette
+    const healthFrac = state.health/state.maxHealth;
+    if(healthFrac < 0.15){
+      const severity = 1 - Math.max(0, healthFrac/0.15);
+      const pulse = 0.5+0.5*Math.sin(now/180);
+      healthEl.style.opacity = ((0.25+severity*0.6)*pulse).toFixed(3);
+    } else {
+      healthEl.style.opacity = 0;
+    }
+  }
+
+  // ---------- LOOP ----------
+  // The loop is wrapped defensively: if any per-frame step ever throws (an
+  // edge case we haven't hit in testing but can't rule out), the game must
+  // NOT permanently freeze — sound/input would keep working while the
+  // canvas silently stops updating, which is far worse than one glitched
+  // frame. requestAnimationFrame(loop) always fires via finally, so at
+  // worst a single frame is skipped and the game recovers on the next one.
+  let frameErrorCount = 0;
+  function loop(now){
+    try {
+      update(now);
+      draw();
+      updateRecommendedHint();
+      updateHeartbeat(now);
+      updateWarnings(now);
+      updateEventStatusHUD();
+    } catch(err){
+      frameErrorCount++;
+      window.__lastGameError = err;
+      if(frameErrorCount <= 5){ // avoid flooding the console if it repeats every frame
+        console.error('[Attritable Swarm] Recovered from a frame error (see window.__lastGameError for details):', err);
+      }
+    } finally {
+      requestAnimationFrame(loop);
+    }
+  }
+  requestAnimationFrame(loop);
+
+  // ---------- INPUT ----------
+  function moveLane(dir){
+    if(!state.running || state.inBanner || state.paused) return;
+    if(dir<0) state.playerLaneTarget = Math.max(0, state.playerLaneTarget-1);
+    else state.playerLaneTarget = Math.min(LANES-1, state.playerLaneTarget+1);
+  }
+  function fireOnCurrentLane(){
+    if(!state.running || state.inBanner || state.paused) return;
+    const lane = Math.round(state.playerLaneTarget);
+    const target = state.targets.find(t=>t.lane===lane);
+    if(target){
+      const amount = parseInt(slider.value,10);
+      deployOnTarget(target, amount);
+      return;
+    }
+    // a crate isn't a combat target — firing on it (or moving into its lane) collects it instead
+    const crate = state.crates.find(c=>c.lane===lane);
+    if(crate){
+      collectCrate(crate);
+      state.crates.splice(state.crates.indexOf(crate),1);
+    }
+  }
+
+  window.addEventListener('keydown', (e)=>{
+    if((e.key==='m'||e.key==='M')&&!e.repeat){ SFX.setMuted(!SFX.isMuted()); updateMuteButton(); return; }
+    if(!state.running || state.inBanner) return;
+    if((e.key==='p' || e.key==='P') && !e.repeat){
+      const helpEl = document.getElementById('helpOverlay');
+      const commentsEl = document.getElementById('commentsOverlay');
+      if(helpEl.style.display==='flex'){ closeHelp(); return; }
+      if(commentsEl.style.display==='flex'){ closeComments(); return; }
+      togglePause();
+      return;
+    }
+    if((e.key==='h' || e.key==='H' || e.key==='?') && !e.repeat){
+      const helpEl = document.getElementById('helpOverlay');
+      if(helpEl.style.display==='flex') closeHelp(); else openHelp();
+      return;
+    }
+    if(state.paused) return;
+    if(e.key==='ArrowLeft' || e.key==='a' || e.key==='A'){
+      e.preventDefault();
+      moveLane(-1);
+    } else if(e.key==='ArrowRight' || e.key==='d' || e.key==='D'){
+      e.preventDefault();
+      moveLane(1);
+    } else if(e.code==='Space' || e.key===' '){
+      e.preventDefault();
+      if(e.repeat) return;
+      fireOnCurrentLane();
+    }
+  });
+
+  canvas.addEventListener('click', (e)=>{
+    if(!state.running || state.inBanner || state.paused) return;
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX-rect.left, my = e.clientY-rect.top;
+    let best=null, bestDist=Infinity;
+    for(const t of state.targets){
+      const p = toScreen(t.col,t.lane);
+      const d = Math.hypot(mx-p.x, my-(p.y-30*SCALE));
+      if(d<50*SCALE && d<bestDist){ best=t; bestDist=d; }
+    }
+    if(best){
+      const amount = parseInt(slider.value,10);
+      deployOnTarget(best, amount);
+      return;
+    }
+    // clicking a crate collects it directly, same as firing on it
+    let bestCrate=null, bestCrateDist=Infinity;
+    for(const c of state.crates){
+      const p = toScreen(c.col,c.lane);
+      const d = Math.hypot(mx-p.x, my-(p.y-30*SCALE));
+      if(d<50*SCALE && d<bestCrateDist){ bestCrate=c; bestCrateDist=d; }
+    }
+    if(bestCrate){
+      collectCrate(bestCrate);
+      state.crates.splice(state.crates.indexOf(bestCrate),1);
+    }
+  });
+
+  // ---------- RECOMMENDED DRONE COUNT HINT ----------
+  let hoveredTarget = null;
+  canvas.addEventListener('mousemove', (e)=>{
+    if(!state.running || state.inBanner || state.paused){ hoveredTarget=null; return; }
+    const rect = canvas.getBoundingClientRect();
+    const mx = e.clientX-rect.left, my = e.clientY-rect.top;
+    let best=null, bestDist=Infinity;
+    for(const t of state.targets){
+      const p = toScreen(t.col,t.lane);
+      const d = Math.hypot(mx-p.x, my-(p.y-30*SCALE));
+      if(d<50*SCALE && d<bestDist){ best=t; bestDist=d; }
+    }
+    hoveredTarget = best;
+  });
+  canvas.addEventListener('mouseleave', ()=>{ hoveredTarget = null; });
+
+  function updateRecommendedHint(){
+    const tickEl = document.getElementById('recTick');
+    const labelEl = document.getElementById('recLabel');
+    const lane = Math.round(state.playerLaneTarget);
+    const target = hoveredTarget || state.targets.find(t=>t.lane===lane);
+
+    if(!target || !state.running || state.inBanner || state.paused || state.commsJammedUntil>performance.now()){
+      tickEl.style.opacity = 0;
+      labelEl.style.opacity = 0;
+      return;
+    }
+
+    const needed = Math.max(1, Math.ceil(target.hp/target.type.dmgPerDrone));
+    const min = parseInt(slider.min,10), max = parseInt(slider.max,10);
+    const trackWidth = slider.clientWidth;
+    const clamped = Math.min(max, needed);
+    const pct = (clamped-min)/(max-min);
+    const leftPx = Math.max(0, Math.min(trackWidth, pct*trackWidth));
+
+    tickEl.style.left = leftPx+'px';
+    tickEl.style.opacity = 1;
+    labelEl.style.left = leftPx+'px';
+    labelEl.textContent = needed>max ? ('NEED '+needed+'+') : ('NEED '+needed);
+    labelEl.style.opacity = 1;
+  }
+
+  // ---------- TOUCH CONTROLS ----------
+  function bindTouchBtn(id, handler){
+    const el = document.getElementById(id);
+    if(!el) return;
+    let firedByTouch = false;
+    el.addEventListener('touchstart', (e)=>{
+      e.preventDefault();
+      firedByTouch = true;
+      SFX.unlock();
+      handler();
+    }, {passive:false});
+    // fallback for devices/browsers where touch doesn't suppress the synthesized click
+    el.addEventListener('click', (e)=>{
+      if(firedByTouch){ firedByTouch=false; return; }
+      SFX.unlock();
+      handler();
+    });
+  }
+  bindTouchBtn('tcLeft', ()=>moveLane(-1));
+  bindTouchBtn('tcRight', ()=>moveLane(1));
+  bindTouchBtn('tcFire', fireOnCurrentLane);
+
+  // tapping a target directly on the battlefield also fires, same as a mouse click
+  canvas.addEventListener('touchstart', (e)=>{
+    if(!state.running || state.inBanner || state.paused) return;
+    if(e.touches.length!==1) return;
+    e.preventDefault();
+    SFX.unlock();
+    const rect = canvas.getBoundingClientRect();
+    const touch = e.touches[0];
+    const mx = touch.clientX-rect.left, my = touch.clientY-rect.top;
+    let best=null, bestDist=Infinity;
+    for(const t of state.targets){
+      const p = toScreen(t.col,t.lane);
+      const d = Math.hypot(mx-p.x, my-(p.y-30*SCALE));
+      if(d<60*SCALE && d<bestDist){ best=t; bestDist=d; }
+    }
+    if(best){
+      const amount = parseInt(slider.value,10);
+      deployOnTarget(best, amount);
+      return;
+    }
+    // tapping a crate collects it directly, same as firing on it
+    let bestCrate=null, bestCrateDist=Infinity;
+    for(const c of state.crates){
+      const p = toScreen(c.col,c.lane);
+      const d = Math.hypot(mx-p.x, my-(p.y-30*SCALE));
+      if(d<60*SCALE && d<bestCrateDist){ bestCrate=c; bestCrateDist=d; }
+    }
+    if(bestCrate){
+      collectCrate(bestCrate);
+      state.crates.splice(state.crates.indexOf(bestCrate),1);
+    }
+  }, {passive:false});
+
+  function updatePauseBtnLabel(){
+    const btn = document.getElementById('pauseBtn');
+    btn.innerHTML = state.paused ? '&#9654;' : '&#10073;&#10073;';
+    btn.title = state.paused ? 'Resume' : 'Pause';
+  }
+
+  // ---------- PAUSE TIMING CORRECTNESS ----------
+  // Every real-time anchor in the game (telegraphs, crates, the artillery
+  // countdown, comms jam, swarm window, pending events, regen idle-timer,
+  // level/run clocks) is stored as an absolute performance.now()-based
+  // timestamp. Without compensation, pausing mid-countdown would let that
+  // real wall-clock time silently count against the player — an artillery
+  // strike could detonate the instant you unpause, or a buff could expire
+  // early. These two helpers shift every such anchor forward by exactly the
+  // paused duration, so from the game's perspective no time passed at all.
+  function pauseGame(){
+    state.paused = true;
+    state.pauseStartedAt = performance.now();
+  }
+  function resumeGame(){
+    const pausedAt = state.pauseStartedAt || performance.now();
+    const pausedDuration = performance.now() - pausedAt;
+    if(pausedDuration > 0){
+      state.lastDeployTime += pausedDuration;
+      state.lastSpawn += pausedDuration;
+      state.levelStartTime += pausedDuration;
+      state.runStartTime += pausedDuration;
+      for(const g of state.telegraphs) g.born += pausedDuration;
+      for(const c of state.crates) c.spawnedAt += pausedDuration;
+      if(state.artillery && !state.artillery.resolved) state.artillery.impactAt += pausedDuration;
+      if(state.commsJammedUntil > pausedAt) state.commsJammedUntil += pausedDuration;
+      if(state.swarmWindowUntil > pausedAt) state.swarmWindowUntil += pausedDuration;
+      if(state.pendingEventType && state.pendingEventAt > pausedAt) state.pendingEventAt += pausedDuration;
+    }
+    state.paused = false;
+    lastFrame = performance.now();
+  }
+
+  function togglePause(){
+    if(state.paused) resumeGame(); else pauseGame();
+    SFX.click();
+    document.getElementById('pauseOverlay').style.display = state.paused ? 'flex' : 'none';
+    updatePauseBtnLabel();
+  }
+  document.getElementById('pauseBtn').addEventListener('click', ()=>{
+    if(!state.running || state.inBanner) return;
+    SFX.unlock();
+    togglePause();
+  });
+
+  // ---------- HELP / QUICK REFERENCE ----------
+  let helpInducedPause = false;
+  function openHelp(){
+    if(!state.running || state.inBanner) return;
+    SFX.unlock(); SFX.click();
+    if(!state.paused){
+      pauseGame();
+      helpInducedPause = true;
+    }
+    document.getElementById('helpOverlay').style.display = 'flex';
+  }
+  function closeHelp(){
+    SFX.click();
+    document.getElementById('helpOverlay').style.display = 'none';
+    if(helpInducedPause){
+      resumeGame();
+      helpInducedPause = false;
+    }
+    updatePauseBtnLabel();
+  }
+  document.getElementById('helpBtn').addEventListener('click', openHelp);
+  document.getElementById('closeHelpBtn').addEventListener('click', closeHelp);
+
+  const muteBtn=document.getElementById('muteBtn');
+  function updateMuteButton(){
+    const muted=SFX.isMuted();
+    muteBtn.innerHTML=muted?'&#128263;':'&#128266;';
+    muteBtn.title=muted?'Unmute sound':'Mute sound';
+    muteBtn.setAttribute('aria-label',muteBtn.title);
+    muteBtn.setAttribute('aria-pressed',muted?'true':'false');
+  }
+  updateMuteButton();
+  muteBtn.addEventListener('click',()=>{ SFX.setMuted(!SFX.isMuted()); updateMuteButton(); });
+
+  // ---------- COMMENTS / FEEDBACK ----------
+  // Change this to the address you want player feedback sent to.
+  const FEEDBACK_EMAIL = 'attritable.swarm.game.contact@gmail.com';
+  const FEEDBACK_EMAIL_CONFIGURED = FEEDBACK_EMAIL && FEEDBACK_EMAIL !== 'your-email@example.com';
+
+  let commentsInducedPause = false;
+  const commentsTextEl = document.getElementById('commentsText');
+  const commentsCountEl = document.getElementById('commentsCount');
+
+  function openComments(){
+    SFX.unlock(); SFX.click();
+    if(state.running && !state.inBanner && !state.paused){
+      pauseGame();
+      commentsInducedPause = true;
+    }
+    commentsCountEl.textContent = commentsTextEl.value.length+' / 500';
+    document.getElementById('commentsOverlay').style.display = 'flex';
+  }
+  function closeComments(){
+    SFX.click();
+    document.getElementById('commentsOverlay').style.display = 'none';
+    if(commentsInducedPause){
+      resumeGame();
+      commentsInducedPause = false;
+    }
+    updatePauseBtnLabel();
+  }
+
+  commentsTextEl.addEventListener('input', ()=>{
+    commentsCountEl.textContent = commentsTextEl.value.length+' / 500';
+  });
+
+  document.getElementById('commentsBtn').addEventListener('click', openComments);
+  document.getElementById('commentsCancelBtn').addEventListener('click', closeComments);
+  document.getElementById('commentsSendBtn').addEventListener('click', ()=>{
+    const msg = commentsTextEl.value.trim();
+    if(!msg) return;
+    SFX.click();
+    const subject = encodeURIComponent('Attritable Swarm - Player Feedback');
+    const context = 'Level '+state.level+', Score '+Math.round(state.score);
+    const body = encodeURIComponent(msg+'\n\n---\n'+context);
+    if(!FEEDBACK_EMAIL_CONFIGURED){
+      alert('Feedback email is not configured yet. Set FEEDBACK_EMAIL in index.html before publishing the comments feature.');
+      return;
+    }
+    window.location.href = 'mailto:'+FEEDBACK_EMAIL+'?subject='+subject+'&body='+body;
+    commentsTextEl.value = '';
+    commentsCountEl.textContent = '0 / 500';
+    closeComments();
+  });
+
+  const slider = document.getElementById('slider');
+  const sliderValLabel = document.getElementById('sliderVal');
+  slider.addEventListener('input', ()=>{
+    sliderValLabel.textContent = slider.value+' UNITS';
+  });
+
+  document.getElementById('startBtn').addEventListener('click', ()=>{
+    SFX.unlock();
+    SFX.click();
+    const name = document.getElementById('callsignInput').value.trim();
+    state.callsign = name || 'COMMANDER';
+    storage.set('swarmCallsign', state.callsign);
+    rand = Math.random;
+    state.dailyMode = false;
+    document.getElementById('dailyBadge').style.display = 'none';
+    document.getElementById('startOverlay').style.display='none';
+    resetGame();
+  });
+
+  // ---------- DAILY CHALLENGE ----------
+  function dailySeedNumber(){
+    const d = new Date();
+    return d.getFullYear()*10000 + (d.getMonth()+1)*100 + d.getDate();
+  }
+  function dailyBestKey(){ return 'swarmDailyBest_'+dailySeedNumber(); }
+  function getDailyBest(){
+    const v = parseInt(storage.get(dailyBestKey(),'0'),10);
+    return Number.isFinite(v) ? Math.max(0,v) : 0;
+  }
+  if(FEATURES.DAILY_CHALLENGE){
+    document.getElementById('dailyOpBtn').style.display = '';
+    document.getElementById('dailyOpBtn').addEventListener('click', ()=>{
+      SFX.unlock();
+      SFX.click();
+      const name = document.getElementById('callsignInput').value.trim();
+      state.callsign = name || 'COMMANDER';
+      storage.set('swarmCallsign', state.callsign);
+      rand = mulberry32(dailySeedNumber());
+      state.dailyMode = true;
+      document.getElementById('dailyBadge').style.display = '';
+      document.getElementById('startOverlay').style.display='none';
+      resetGame();
+    });
+  }
+
+  // ---------- MOTOR POOL (META-PROGRESSION UI) ----------
+  function renderMotorPool(){
+    document.getElementById('motorPoolCurrency').textContent = getMetaCurrency();
+    const list = document.getElementById('motorPoolList');
+    const upgrades = getMetaUpgrades();
+    const currency = getMetaCurrency();
+    list.innerHTML = '';
+    for(const key of Object.keys(META_UPGRADES)){
+      const def = META_UPGRADES[key];
+      const level = upgrades[key]||0;
+      const maxed = level>=def.max;
+      const cost = maxed ? null : metaUpgradeCost(key, level);
+      const row = document.createElement('div');
+      row.className = 'scoreLine';
+      row.style.cssText = 'display:flex; justify-content:space-between; align-items:center; gap:8px; margin:10px 0;';
+      const canAfford = !maxed && currency>=cost;
+      row.innerHTML = '<span>'+def.label+' <span style="color:var(--ink-soft); font-size:11px;">Lv '+level+'/'+def.max+' &mdash; '+def.desc+'</span></span>'
+        + '<button data-key="'+key+'" '+(maxed||!canAfford?'disabled':'')+' style="white-space:nowrap; opacity:'+(maxed?'0.5':'1')+';">'
+        + (maxed ? 'MAXED' : ('BUY ('+cost+')')) + '</button>';
+      list.appendChild(row);
+    }
+    list.querySelectorAll('button[data-key]').forEach(btn=>{
+      btn.addEventListener('click', ()=>{
+        SFX.click();
+        if(buyMetaUpgrade(btn.getAttribute('data-key'))) renderMotorPool();
+      });
+    });
+  }
+  if(FEATURES.META_PROGRESSION){
+    document.getElementById('motorPoolBtn').style.display = '';
+    document.getElementById('motorPoolBtn').addEventListener('click', ()=>{
+      SFX.unlock(); SFX.click();
+      renderMotorPool();
+      document.getElementById('motorPoolOverlay').style.display = 'flex';
+    });
+    document.getElementById('motorPoolCloseBtn').addEventListener('click', ()=>{
+      SFX.click();
+      document.getElementById('motorPoolOverlay').style.display = 'none';
+    });
+  }
+
+  document.getElementById('restartBtn').addEventListener('click', ()=>{
+    SFX.unlock();
+    SFX.click();
+    document.getElementById('endOverlay').style.display='none';
+    document.getElementById('pauseOverlay').style.display='none';
+    resetGame();
+  });
+
+  document.getElementById('highVal').textContent = state.highScore;
+
+  // ---------- CALLSIGN ----------
+  const savedCallsign = storage.get('swarmCallsign','');
+  state.callsign = savedCallsign || 'COMMANDER';
+  document.getElementById('callsignInput').value = savedCallsign;
+
+  // ---------- SHARE ----------
+  function buildShareText(){
+    return state.callsign+' earned the rank of '+getRank(state.score).title+', scored '+Math.round(state.score)+' points and reached Level '
+      +state.level+' in ATTRITABLE SWARM!';
+  }
+
+  function buildScoreCardBlob(callback){
+    const w = 1000, h = 560;
+    const off = document.createElement('canvas');
+    off.width = w; off.height = h;
+    const c = off.getContext('2d');
+
+    c.fillStyle = '#dbd5bd';
+    c.fillRect(0,0,w,h);
+    c.fillStyle = c.createPattern(noiseCanvas,'repeat');
+    c.globalAlpha = 0.9; c.fillRect(0,0,w,h); c.globalAlpha = 1;
+
+    c.strokeStyle = '#2b2a22'; c.lineWidth = 6;
+    c.strokeRect(20,20,w-40,h-40);
+
+    c.textAlign = 'center';
+    c.fillStyle = '#454f34';
+    c.font = 'bold 46px Courier New';
+    c.fillText('ATTRITABLE SWARM', w/2, 100);
+    c.fillStyle = '#7c2e28';
+    c.font = 'bold 20px Courier New';
+    c.fillText('FIELD REPORT', w/2, 135);
+
+    c.strokeStyle = '#2b2a22'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(120,165); c.lineTo(w-120,165); c.stroke();
+
+    c.fillStyle = '#2b2a22';
+    c.font = 'bold 30px Courier New';
+    c.fillText('CALLSIGN: '+state.callsign, w/2, 240);
+
+    c.font = 'bold 64px Courier New';
+    c.fillStyle = '#7c2e28';
+    c.fillText(Math.round(state.score)+' PTS', w/2, 340);
+
+    c.font = '28px Courier New';
+    c.fillStyle = '#454f34';
+    c.fillText('LEVEL REACHED: '+state.level, w/2, 400);
+
+    c.font = '16px Courier New';
+    c.fillStyle = '#4a4636';
+    c.fillText(new Date().toDateString(), w/2, h-40);
+
+    off.toBlob(callback, 'image/png');
+  }
+
+  function openShareFallback(){
+    document.getElementById('shareFallbackOverlay').style.display = 'flex';
+  }
+
+  document.getElementById('shareBtn').addEventListener('click', async ()=>{
+    SFX.unlock(); SFX.click();
+    const text = buildShareText();
+    const url = window.location.href;
+
+    if(navigator.share){
+      buildScoreCardBlob(async (blob)=>{
+        try{
+          const file = blob ? new File([blob], 'attritable-swarm-score.png', {type:'image/png'}) : null;
+          if(file && navigator.canShare && navigator.canShare({files:[file]})){
+            await navigator.share({title:'Attritable Swarm', text, url, files:[file]});
+          } else {
+            await navigator.share({title:'Attritable Swarm', text, url});
+          }
+        } catch(err){
+          // user cancelled the native share sheet — not an error, do nothing
+        }
+      });
+    } else {
+      openShareFallback();
+    }
+  });
+
+  document.getElementById('shareXBtn').addEventListener('click', ()=>{
+    const text = encodeURIComponent(buildShareText());
+    const url = encodeURIComponent(window.location.href);
+    window.open('https://twitter.com/intent/tweet?text='+text+'&url='+url, '_blank', 'noopener,noreferrer');
+  });
+  document.getElementById('shareFbBtn').addEventListener('click', ()=>{
+    const url = encodeURIComponent(window.location.href);
+    window.open('https://www.facebook.com/sharer/sharer.php?u='+url, '_blank', 'noopener,noreferrer');
+  });
+  document.getElementById('shareCopyBtn').addEventListener('click', async ()=>{
+    const text = buildShareText()+' '+window.location.href;
+    try{ await navigator.clipboard.writeText(text); }catch(e){}
+  });
+  document.getElementById('shareDownloadBtn').addEventListener('click', ()=>{
+    buildScoreCardBlob((blob)=>{
+      if(!blob) return;
+      const link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'attritable-swarm-score.png';
+      link.click();
+    });
+  });
+  document.getElementById('shareCloseBtn').addEventListener('click', ()=>{
+    document.getElementById('shareFallbackOverlay').style.display = 'none';
+  });
+
+})();
+</script>
+</body>
+</html>
