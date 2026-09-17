@@ -470,12 +470,16 @@
       <div class="scoreLine" id="endDailyBestRow" style="display:none;">DAILY BEST: <b id="endDailyBest">0</b></div>
       <div class="scoreLine" id="endMetaEarnedRow" style="display:none;">SUPPLY POINTS EARNED: <b id="endMetaEarned">0</b></div>
       <div id="aarSection" style="display:none; margin-top:10px; padding-top:10px; border-top:2px solid var(--ink); text-align:left;">
-        <div class="rankKicker" style="text-align:center; margin-bottom:6px;">AFTER ACTION REPORT</div>
+        <div class="aarTitle" style="text-align:center; font-size:16px; font-weight:bold; letter-spacing:2px; color:var(--olive); margin-bottom:2px;">AFTER ACTION REPORT</div>
+        <div style="width:60px; height:2px; background:var(--ink); margin:0 auto 10px;"></div>
         <div class="scoreLine">TOTAL KILLS: <b id="aarKills">0</b></div>
         <div class="scoreLine">DRONES LAUNCHED: <b id="aarDrones">0</b></div>
         <div class="scoreLine">BEST EFFICIENCY STREAK: <b id="aarStreak">0</b></div>
         <div class="scoreLine">TIME IN FIELD: <b id="aarTime">0:00</b></div>
-        <div class="scoreLine" id="aarBreakdown">KILLS BY TYPE: <b id="aarByType">—</b></div>
+        <div class="scoreLine">SUPPLY CRATES COLLECTED: <b id="aarCrates">0</b></div>
+        <div class="scoreLine">DAMAGE TAKEN: <b id="aarDamage">0</b></div>
+        <div class="scoreLine">KILLS BY TYPE:</div>
+        <ul id="aarByTypeList" style="margin:2px 0 0 0; padding-left:20px; font-size:12px; line-height:1.6; color:var(--ink-soft);"></ul>
       </div>
       <div class="cardBtnRow">
         <button id="restartBtn">RESTART MISSION</button>
@@ -519,7 +523,7 @@
         <br><br>
         <b>ARSENAL</b> is finite and regenerates faster the longer you hold off deploying. Hit zero and the mission ends.
         <br>
-        <b>TARGETS</b> can't be scared off &mdash; only drones remove them. Each has a spin-up delay before it starts firing back, then deals ongoing damage until destroyed. Threat rises: soldier &lt; vehicle &lt; vehicle column &lt; tank &lt; weapons plant, with an attack helicopter boss on milestone levels.
+        <b>TARGETS</b> can't be scared off &mdash; only drones remove them. Each has a spin-up delay before it starts firing back, then deals ongoing damage until destroyed. Threat rises: soldier &lt; vehicle &lt; vehicle convoy &lt; tank &lt; weapons plant, with an attack helicopter boss on milestone levels.
         <br><br>
         A clean kill with little wasted overkill earns an <b>EFFICIENCY bonus</b> and builds a streak multiplier. Clearing a level heals some health and raises your arsenal cap &mdash; the bonus shrinks each level.
         <br><br>
@@ -1269,8 +1273,8 @@
   const TYPES = {
     soldier:  {key:'soldier',  name:'SOLDIER SQUAD',   hp:24,  dmgPerDrone:3.4, spinUp:1.0, dps:1.5,  reward:15,  w:18, h:30},
     vehicle:  {key:'vehicle',  name:'VEHICLE',         hp:60,  dmgPerDrone:3.0, spinUp:1.5, dps:3.0,  reward:35,  w:34, h:22},
-    group:    {key:'group',    name:'VEHICLE COLUMN',  hp:140, dmgPerDrone:2.6, spinUp:2.0, dps:5.0,  reward:70,  w:52, h:24},
-    tank:     {key:'tank',     name:'MAIN BATTLE TANK',hp:230, dmgPerDrone:2.1, spinUp:2.5, dps:8.0,  reward:120, w:44, h:26},
+    group:    {key:'group',    name:'VEHICLE CONVOY',  hp:140, dmgPerDrone:2.6, spinUp:2.0, dps:5.0,  reward:70,  w:52, h:24},
+    tank:     {key:'tank',     name:'ENEMY TANK',      hp:230, dmgPerDrone:2.1, spinUp:2.5, dps:8.0,  reward:120, w:44, h:26},
     plant:    {key:'plant',    name:'WEAPONS PLANT',   hp:440, dmgPerDrone:1.5, spinUp:3.5, dps:13.0, reward:250, w:50, h:56},
     helo:     {key:'helo',     name:'ATTACK HELICOPTER',hp:650,dmgPerDrone:1.1, spinUp:2.5, dps:20.0, reward:500, w:60, h:40},
     jet:        {key:'jet',        name:'FIGHTER JET',     hp:500, dmgPerDrone:1.3,  spinUp:1.8, dps:16.0, reward:400, w:56, h:40},
@@ -1352,6 +1356,8 @@
     levelBannerTimer:null,
     dailyMode:false,
     dronesLaunched:0,
+    cratesCollected:0,
+    damageTaken:0,
     bestStreak:0,
     killsByType:{},
     runStartTime:0,
@@ -1548,7 +1554,9 @@
     triggerShake(16);
     SFX.empBlast();
     if(playerHit){
+      const preArtyHealth = state.health;
       state.health = Math.max(0, state.health-30);
+      state.damageTaken += preArtyHealth-state.health;
       pulseDamageFlash();
       if(state.health<=0){ state.health=0; endGame('CAUGHT IN ARTILLERY BARRAGE'); }
     }
@@ -1599,6 +1607,8 @@
     state.comboStreak = 0;
     state.kills = 0;
     state.dronesLaunched = 0;
+    state.cratesCollected = 0;
+    state.damageTaken = 0;
     state.bestStreak = 0;
     state.killsByType = {};
     state.runStartTime = performance.now();
@@ -1689,6 +1699,7 @@
   }
 
   function collectCrate(crate){
+    state.cratesCollected++;
     const kind = rollCrateReward();
     if(kind==='arsenal'){
       const amount = Math.round(state.arsenalCap*0.35);
@@ -1959,7 +1970,7 @@
         const op = toScreen(other.col, other.lane);
         const dist = Math.hypot(op.x-impact.x, op.y-impact.y);
         if(dist < SPLASH_RADIUS*SCALE){
-          const falloff = 0.45*(1-dist/SPLASH_RADIUS);
+          const falloff = 0.45*(1-dist/(SPLASH_RADIUS*SCALE));
           applyHit(other, s.dmg*falloff, 0);
           spawnExplosion(op.x, op.y-10*SCALE, s.sent*falloff);
         }
@@ -2034,7 +2045,9 @@
       if(t.hitFlash>0) t.hitFlash = Math.max(0,t.hitFlash-dt*3);
       if(t.age >= t.type.spinUp){
         const dpsMult = 0.6 + (state.level-1)*0.085; // level 1 fires at 60% strength (was 50%), ramps a bit faster too
-        state.health -= t.type.dps*dt*dpsMult;
+        const dpsAmount = t.type.dps*dt*dpsMult;
+        state.health -= dpsAmount;
+        state.damageTaken += dpsAmount;
         if(state.health<=0){
           state.health = 0;
           endGame('COMMANDER DOWN');
@@ -2166,13 +2179,23 @@
       document.getElementById('aarStreak').textContent = state.bestStreak;
       const secs = Math.max(0, Math.round((performance.now()-state.runStartTime)/1000));
       document.getElementById('aarTime').textContent = Math.floor(secs/60)+':'+String(secs%60).padStart(2,'0');
-      const byType = Object.entries(state.killsByType)
-        .sort((a,b)=>b[1]-a[1])
-        .map(([key,n])=>{
+      document.getElementById('aarCrates').textContent = state.cratesCollected;
+      document.getElementById('aarDamage').textContent = Math.round(state.damageTaken);
+      const byTypeList = document.getElementById('aarByTypeList');
+      byTypeList.innerHTML = '';
+      const byTypeEntries = Object.entries(state.killsByType).sort((a,b)=>b[1]-a[1]);
+      if(byTypeEntries.length===0){
+        const li = document.createElement('li');
+        li.textContent = 'NONE';
+        byTypeList.appendChild(li);
+      } else {
+        for(const [key,n] of byTypeEntries){
           const t = TYPES[key];
-          return (t?t.name:key)+' x'+n;
-        }).join(', ');
-      document.getElementById('aarByType').textContent = byType || 'NONE';
+          const li = document.createElement('li');
+          li.textContent = (t?t.name:key)+' x'+n;
+          byTypeList.appendChild(li);
+        }
+      }
       aar.style.display = '';
     } else {
       aar.style.display = 'none';
@@ -3434,7 +3457,7 @@
       ctx.fillStyle = 'rgba(179,171,141,0.9)';
       ctx.fillRect(p.x-barW/2, p.y-60*SCALE, barW, 5*SCALE);
       ctx.fillStyle = '#7c2e28';
-      ctx.fillRect(p.x-barW/2, p.y-60*SCALE, barW*Math.max(0,t.hp/t.maxHp), 5*SCALE);
+      ctx.fillRect(p.x-barW/2, p.y-60*SCALE, barW*Math.min(1,Math.max(0,t.hp/t.maxHp)), 5*SCALE);
       ctx.strokeStyle='#2b2a22'; ctx.lineWidth=0.8;
       ctx.strokeRect(p.x-barW/2, p.y-60*SCALE, barW, 5*SCALE);
 
