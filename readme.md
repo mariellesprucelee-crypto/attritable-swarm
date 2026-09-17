@@ -2,11 +2,11 @@
 
 ### Command the swarm. Survive the field.
 
-![Attritable Swarm](images/attritable-swarm-social.jpg)
+![Attritable Swarm](attritable-swarm-social.jpg)
 
 **Attritable Swarm** is a free military-themed tactical browser game where you command a mobile drone carrier, deploy attritable drone swarms against incoming battlefield threats, manage a limited arsenal, and attempt to survive as many levels as possible.
 
-## 🎮 Play the Game
+## Play the Game
 
 **Play Attritable Swarm free in your browser:**
 
@@ -146,7 +146,7 @@ Feedback is welcome.
 
 ## Screenshots
 
-![Attritable Swarm gameplay](images/attritable-swarm-screenshot.png)
+![Attritable Swarm gameplay](attritable-swarm-screenshot.png)
 
 ---
 
