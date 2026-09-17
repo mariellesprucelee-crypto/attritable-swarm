@@ -128,13 +128,27 @@
   }
   *{box-sizing:border-box;}
   html,body{
-    margin:0; padding:0; width:100%; height:100%; overflow:hidden;
+    margin:0; padding:0; width:100%; min-height:100%;
     background:var(--paper);
     font-family:'Courier New', Courier, monospace;
     color:var(--ink);
     -webkit-user-select:none; user-select:none;
+  }
+  /* Game fills the viewport exactly, as before; the SEO section below it is
+     reached by scrolling the page rather than living inside the play area. */
+  #gameContainer{
+    width:100%; height:100vh; height:100dvh; overflow:hidden;
     display:flex; flex-direction:column;
   }
+  #seoInfo{
+    max-width:820px; margin:0 auto; padding:34px 20px 50px;
+    -webkit-user-select:text; user-select:text;
+    color:var(--ink-soft); line-height:1.7; font-size:13px;
+  }
+  #seoInfo h1{ font-size:20px; letter-spacing:2px; color:var(--olive); margin:0 0 8px; }
+  #seoInfo h2{ font-size:14px; letter-spacing:1.5px; color:var(--red); margin:22px 0 8px; }
+  #seoInfo a{ color:var(--olive); }
+  #seoInfo ul{ padding-left:20px; margin:6px 0; }
   #adTop{
     flex-shrink:0; width:100%; min-height:50px;
     display:flex; align-items:center; justify-content:center;
@@ -424,24 +438,24 @@
 <body>
 <!-- ============================================================
      GOOGLE AD SLOT (thin top banner)
-     Replace ca-pub-XXXXXXXXXXXXXXXX and data-ad-slot below with
-     your real AdSense publisher ID and ad unit ID once your
-     account is approved. Until then this is inert placeholder
-     markup — no ad script is actually loaded from Google.
      ============================================================ -->
-<!--
 <script async src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-5708539672589775" crossorigin="anonymous"></script>
--->
+<div id="gameContainer">
 <div id="adTop">
+  <!-- attritable-banner-ad -->
   <ins class="adsbygoogle"
        style="display:block; width:100%; height:100%;"
-       data-ad-client="ca-pub-XXXXXXXXXXXXXXXX"
-       data-ad-slot="XXXXXXXXXX"
-       data-ad-format="horizontal"
+       data-ad-client="ca-pub-5708539672589775"
+       data-ad-slot="6338592849"
+       data-ad-format="auto"
        data-full-width-responsive="true"></ins>
 </div>
-<!-- <script>(adsbygoogle = window.adsbygoogle || []).push({});</script> -->
+<script>
+     (adsbygoogle = window.adsbygoogle || []).push({});
+</script>
 <div id="adGap"></div>
+
+
 
 <div id="wrap">
   <canvas id="game"></canvas>
@@ -563,12 +577,15 @@
       <div class="scoreLine" id="endDailyBestRow" style="display:none;">DAILY BEST: <b id="endDailyBest">0</b></div>
       <div class="scoreLine" id="endMetaEarnedRow" style="display:none;">SUPPLY POINTS EARNED: <b id="endMetaEarned">0</b></div>
       <div id="aarSection" style="display:none; margin-top:10px; padding-top:10px; border-top:2px solid var(--ink); text-align:left;">
-        <div class="rankKicker" style="text-align:center; margin-bottom:6px;">AFTER ACTION REPORT</div>
+        <h2 style="text-align:center; margin:0 0 10px 0; font-size:14px; letter-spacing:2px; color:var(--red);">AFTER ACTION REPORT</h2>
         <div class="scoreLine">TOTAL KILLS: <b id="aarKills">0</b></div>
         <div class="scoreLine">DRONES LAUNCHED: <b id="aarDrones">0</b></div>
         <div class="scoreLine">BEST EFFICIENCY STREAK: <b id="aarStreak">0</b></div>
+        <div class="scoreLine">CRATES COLLECTED: <b id="aarCrates">0</b></div>
+        <div class="scoreLine">DAMAGE TAKEN: <b id="aarDamage">0</b></div>
         <div class="scoreLine">TIME IN FIELD: <b id="aarTime">0:00</b></div>
-        <div class="scoreLine" id="aarBreakdown">KILLS BY TYPE: <b id="aarByType">—</b></div>
+        <div class="scoreLine" id="aarBreakdown">KILLS BY TYPE:</div>
+        <ul id="aarByTypeList" style="margin:4px 0 0 0; padding-left:20px; font-size:13px; line-height:1.6;"></ul>
       </div>
       <div class="cardBtnRow">
         <button id="restartBtn">RESTART MISSION</button>
@@ -594,6 +611,8 @@
       <div class="cardBtnRow" style="flex-wrap:wrap;">
         <button id="shareXBtn">X / TWITTER</button>
         <button id="shareFbBtn">FACEBOOK</button>
+        <button id="shareWaBtn">WHATSAPP</button>
+        <button id="shareRedditBtn">REDDIT</button>
         <button id="shareCopyBtn">COPY TEXT</button>
         <button id="shareDownloadBtn">DOWNLOAD IMAGE</button>
       </div>
@@ -612,7 +631,7 @@
         <br><br>
         <b>ARSENAL</b> is finite and regenerates faster the longer you hold off deploying. Hit zero and the mission ends.
         <br>
-        <b>TARGETS</b> can't be scared off &mdash; only drones remove them. Each has a spin-up delay before it starts firing back, then deals ongoing damage until destroyed. Threat rises: soldier &lt; vehicle &lt; vehicle column &lt; tank &lt; weapons plant, with an attack helicopter boss on milestone levels.
+        <b>TARGETS</b> can't be scared off &mdash; only drones remove them. Each has a spin-up delay before it starts firing back, then deals ongoing damage until destroyed. Threat rises: soldier &lt; vehicle &lt; vehicle convoy &lt; enemy tank &lt; weapons plant, with an attack helicopter boss on milestone levels.
         <br><br>
         A clean kill with little wasted overkill earns an <b>EFFICIENCY bonus</b> and builds a streak multiplier. Clearing a level heals some health and raises your arsenal cap &mdash; the bonus shrinks each level.
         <br><br>
@@ -638,10 +657,42 @@
     </div>
   </div>
 </div>
+</div><!-- /gameContainer -->
+
+<section id="seoInfo">
+  <h1>ATTRITABLE SWARM — Free Military Drone Swarm Browser Game</h1>
+  <p>
+    Attritable Swarm is a free, no-download military-themed browser game. Command a mobile drone
+    carrier along the forward line, deploy your drone swarm against soldiers, technicals, vehicle
+    convoys, enemy tanks, weapons plants, and attack helicopters, and survive as many levels as you
+    can. Play instantly in your browser on desktop or mobile — no install, no sign-up.
+  </p>
+  <h2>HOW TO PLAY</h2>
+  <ul>
+    <li>Move your carrier between lanes with the arrow keys, A/D, or on-screen buttons.</li>
+    <li>Set your swarm size with the DRONE RELEASE slider, then release drones on the target in your lane.</li>
+    <li>Your arsenal is finite and regenerates over time — manage it carefully to survive.</li>
+    <li>Clear levels to heal up and raise your arsenal cap; watch for random battlefield events and supply crates.</li>
+  </ul>
+  <p><a id="howToPlayLink" href="how-to-play.html">Full field manual / how to play</a> &nbsp;|&nbsp; <a id="aboutLink" href="about.html">About Attritable Swarm</a></p>
+  <h2>ABOUT THE GAME</h2>
+  <p>
+    Built as a lightweight, single-page arcade strategy game, Attritable Swarm is inspired by
+    modern attritable drone warfare doctrine. It's completely free to play, works on any modern
+    browser, and requires no download or account.
+  </p>
+</section>
 
 <script>
 (function(){
   "use strict";
+
+  // ---------- ANALYTICS ----------
+  // Thin wrapper around gtag so every call site stays safe even if the GA
+  // snippet ever fails to load (ad blockers, offline testing, etc).
+  function trackEvent(name, params){
+    try{ if(typeof gtag==='function') gtag('event', name, params||{}); }catch(e){}
+  }
 
   // ---------- SAFE LOCAL STORAGE ----------
   // Storage can be unavailable in private/restricted/embedded browser contexts.
@@ -828,9 +879,13 @@
     // (fieldTop already clears them) but above where the lane bands actually
     // start, instead of squeezing into the HUD row and overlapping the
     // Swarm Command / health-arsenal panels
+    // sits in the gap between the player vehicle's row and the move-controls
+    // hint/touch controls at the bottom of the field, instead of crowding the
+    // HUD panels up top
     const killFeedEl = document.getElementById('killFeed');
     if(killFeedEl){
-      killFeedEl.style.top = Math.max(4, fieldTop-(hasTouch?20:28))+'px';
+      const belowPlayer = baseY - 1.3*colSpacing + (hasTouch?20:26);
+      killFeedEl.style.top = Math.min(H-bottomMargin-18, Math.max(fieldTop+18, belowPlayer))+'px';
     }
 
     buildTerrainDecor();
@@ -1362,8 +1417,8 @@
   const TYPES = {
     soldier:  {key:'soldier',  name:'SOLDIER SQUAD',   hp:24,  dmgPerDrone:3.4, spinUp:1.0, dps:1.5,  reward:15,  w:18, h:30},
     vehicle:  {key:'vehicle',  name:'VEHICLE',         hp:60,  dmgPerDrone:3.0, spinUp:1.5, dps:3.0,  reward:35,  w:34, h:22},
-    group:    {key:'group',    name:'VEHICLE COLUMN',  hp:140, dmgPerDrone:2.6, spinUp:2.0, dps:5.0,  reward:70,  w:52, h:24},
-    tank:     {key:'tank',     name:'MAIN BATTLE TANK',hp:230, dmgPerDrone:2.1, spinUp:2.5, dps:8.0,  reward:120, w:44, h:26},
+    group:    {key:'group',    name:'VEHICLE CONVOY',  hp:140, dmgPerDrone:2.6, spinUp:2.0, dps:5.0,  reward:70,  w:52, h:24},
+    tank:     {key:'tank',     name:'ENEMY TANK',      hp:230, dmgPerDrone:2.1, spinUp:2.5, dps:8.0,  reward:120, w:44, h:26},
     plant:    {key:'plant',    name:'WEAPONS PLANT',   hp:440, dmgPerDrone:1.5, spinUp:3.5, dps:13.0, reward:250, w:50, h:56},
     helo:     {key:'helo',     name:'ATTACK HELICOPTER',hp:650,dmgPerDrone:1.1, spinUp:2.5, dps:20.0, reward:500, w:60, h:40},
     jet:        {key:'jet',        name:'FIGHTER JET',     hp:500, dmgPerDrone:1.3,  spinUp:1.8, dps:16.0, reward:400, w:56, h:40},
@@ -1447,6 +1502,8 @@
     dronesLaunched:0,
     bestStreak:0,
     killsByType:{},
+    cratesCollected:0,
+    damageTaken:0,
     runStartTime:0,
     lastEventLevel:0,
     pendingEventType:null,
@@ -1642,6 +1699,7 @@
     SFX.empBlast();
     if(playerHit){
       state.health = Math.max(0, state.health-30);
+      state.damageTaken += 30;
       pulseDamageFlash();
       if(state.health<=0){ state.health=0; endGame('CAUGHT IN ARTILLERY BARRAGE'); }
     }
@@ -1694,6 +1752,8 @@
     state.dronesLaunched = 0;
     state.bestStreak = 0;
     state.killsByType = {};
+    state.cratesCollected = 0;
+    state.damageTaken = 0;
     state.runStartTime = performance.now();
     state.lastEventLevel = 0;
     state.pendingEventType = null;
@@ -1782,6 +1842,7 @@
   }
 
   function collectCrate(crate){
+    state.cratesCollected++;
     const kind = rollCrateReward();
     if(kind==='arsenal'){
       const amount = Math.round(state.arsenalCap*0.35);
@@ -2051,8 +2112,9 @@
         if(other===target) continue;
         const op = toScreen(other.col, other.lane);
         const dist = Math.hypot(op.x-impact.x, op.y-impact.y);
-        if(dist < SPLASH_RADIUS*SCALE){
-          const falloff = 0.45*(1-dist/SPLASH_RADIUS);
+        const effSplashRadius = SPLASH_RADIUS*SCALE;
+        if(dist < effSplashRadius){
+          const falloff = Math.max(0, 0.45*(1-dist/effSplashRadius));
           applyHit(other, s.dmg*falloff, 0);
           spawnExplosion(op.x, op.y-10*SCALE, s.sent*falloff);
         }
@@ -2127,10 +2189,12 @@
       if(t.hitFlash>0) t.hitFlash = Math.max(0,t.hitFlash-dt*3);
       if(t.age >= t.type.spinUp){
         const dpsMult = 0.6 + (state.level-1)*0.085; // level 1 fires at 60% strength (was 50%), ramps a bit faster too
-        state.health -= t.type.dps*dt*dpsMult;
+        const dpsDmg = t.type.dps*dt*dpsMult;
+        state.health -= dpsDmg;
+        state.damageTaken += dpsDmg;
         if(state.health<=0){
           state.health = 0;
-          endGame('COMMANDER DOWN');
+          endGame((state.callsign||'COMMANDER').toUpperCase()+' DOWN');
           break;
         }
       }
@@ -2257,21 +2321,34 @@
       document.getElementById('aarKills').textContent = state.kills;
       document.getElementById('aarDrones').textContent = Math.round(state.dronesLaunched);
       document.getElementById('aarStreak').textContent = state.bestStreak;
+      document.getElementById('aarCrates').textContent = state.cratesCollected;
+      document.getElementById('aarDamage').textContent = Math.round(state.damageTaken);
       const secs = Math.max(0, Math.round((performance.now()-state.runStartTime)/1000));
       document.getElementById('aarTime').textContent = Math.floor(secs/60)+':'+String(secs%60).padStart(2,'0');
-      const byType = Object.entries(state.killsByType)
-        .sort((a,b)=>b[1]-a[1])
-        .map(([key,n])=>{
-          const t = TYPES[key];
-          return (t?t.name:key)+' x'+n;
-        }).join(', ');
-      document.getElementById('aarByType').textContent = byType || 'NONE';
+      const byTypeEntries = Object.entries(state.killsByType).sort((a,b)=>b[1]-a[1]);
+      const listEl = document.getElementById('aarByTypeList');
+      listEl.innerHTML = byTypeEntries.length
+        ? byTypeEntries.map(([key,n])=>{
+            const t = TYPES[key];
+            return '<li>'+(t?t.name:key)+' x'+n+'</li>';
+          }).join('')
+        : '<li>NONE</li>';
       aar.style.display = '';
     } else {
       aar.style.display = 'none';
     }
 
     document.getElementById('endOverlay').style.display = 'flex';
+
+    trackEvent('game_over', {
+      reason: reason,
+      level_reached: state.level,
+      score: Math.round(state.score),
+      kills: state.kills,
+      drones_launched: Math.round(state.dronesLaunched),
+      rank: getRank(state.score).title,
+      mode: state.dailyMode ? 'daily' : 'standard'
+    });
   }
 
   function updateHUD(){
@@ -3527,7 +3604,7 @@
       ctx.fillStyle = 'rgba(179,171,141,0.9)';
       ctx.fillRect(p.x-barW/2, p.y-40*SCALE, barW, 5*SCALE);
       ctx.fillStyle = '#7c2e28';
-      ctx.fillRect(p.x-barW/2, p.y-40*SCALE, barW*Math.max(0,t.hp/t.maxHp), 5*SCALE);
+      ctx.fillRect(p.x-barW/2, p.y-40*SCALE, barW*Math.min(1,Math.max(0,t.hp/t.maxHp)), 5*SCALE);
       ctx.strokeStyle='#2b2a22'; ctx.lineWidth=0.8;
       ctx.strokeRect(p.x-barW/2, p.y-40*SCALE, barW, 5*SCALE);
 
@@ -3544,6 +3621,32 @@
         ctx.fillRect(p.x-barW/2, p.y-34*SCALE, barW, 3*SCALE);
       }
     }
+  }
+
+  // Tiny quad-copter silhouette: X-frame arms with a small propeller blur at
+  // each tip and a compact center body. Kept to a handful of cheap draw calls
+  // per drone so it stays fine even with dozens of drones in flight at once.
+  function drawDroneParticle(x, y, r, spin){
+    ctx.save();
+    ctx.translate(x, y);
+    ctx.rotate(spin*0.6);
+    const arm = r*1.5;
+    ctx.strokeStyle = 'rgba(43,42,34,0.9)';
+    ctx.lineWidth = Math.max(0.5, r*0.32);
+    ctx.beginPath();
+    ctx.moveTo(-arm,-arm); ctx.lineTo(arm,arm);
+    ctx.moveTo(-arm,arm); ctx.lineTo(arm,-arm);
+    ctx.stroke();
+    // propeller blur discs at each of the four arm tips
+    ctx.fillStyle = 'rgba(43,42,34,0.30)';
+    const propR = r*0.62;
+    [[-arm,-arm],[arm,arm],[-arm,arm],[arm,-arm]].forEach(([px,py])=>{
+      ctx.beginPath(); ctx.ellipse(px,py, propR, propR*0.4, Math.atan2(py,px)+spin, 0, Math.PI*2); ctx.fill();
+    });
+    // compact center body
+    ctx.fillStyle = 'rgba(43,42,34,0.92)';
+    ctx.beginPath(); ctx.arc(0,0,r*0.5,0,Math.PI*2); ctx.fill();
+    ctx.restore();
   }
 
   function drawParticles(){
@@ -3571,8 +3674,10 @@
       const x = bx + p.fx*spread;
       const y = by + p.fy*spread + bob;
 
-      ctx.fillStyle = 'rgba(43,42,34,'+(0.85-f*0.15)+')';
-      ctx.beginPath(); ctx.arc(x,y,p.r,0,Math.PI*2); ctx.fill();
+      ctx.save();
+      ctx.globalAlpha = 0.85-f*0.15;
+      drawDroneParticle(x, y, p.r, performance.now()/220 + p.phase);
+      ctx.restore();
     }
   }
 
@@ -3802,20 +3907,18 @@
 
     if((e.key==='m'||e.key==='M')&&!e.repeat){ SFX.setMuted(!SFX.isMuted()); updateMuteButton(); return; }
     if(!state.running || state.inBanner) return;
-    const helpEl = document.getElementById('helpOverlay');
-    const commentsEl = document.getElementById('commentsOverlay');
     if((e.key==='p' || e.key==='P') && !e.repeat){
-      if(helpEl.style.display==='flex'){ closeHelp(); return; }
-      if(commentsEl.style.display==='flex'){ closeComments(); return; }
+      if(activeModal==='help'){ closeHelp(); return; }
+      if(activeModal==='comments'){ closeComments(); return; }
       togglePause();
       return;
     }
     if((e.key==='h' || e.key==='H' || e.key==='?') && !e.repeat){
-      if(commentsEl.style.display==='flex') return; // don't open/close Help while the comments dialog is up
-      if(helpEl.style.display==='flex') closeHelp(); else openHelp();
+      if(activeModal==='comments') return; // don't open/close Help while the comments dialog is up
+      if(activeModal==='help') closeHelp(); else openHelp();
       return;
     }
-    if(commentsEl.style.display==='flex') return; // comments dialog is up — no other hotkeys should reach the game
+    if(activeModal==='comments') return; // comments dialog is up — no other hotkeys should reach the game
     if(state.paused) return;
     if(e.key==='ArrowLeft' || e.key==='a' || e.key==='A'){
       e.preventDefault();
@@ -4006,22 +4109,30 @@
   });
 
   // ---------- HELP / QUICK REFERENCE ----------
-  let helpInducedPause = false;
+  // A single activeModal flag (rather than separate help/comments booleans)
+  // guarantees only one of these overlays can ever be open or toggled at a
+  // time, which is what stops the Field Manual and Comments dialogs from
+  // fighting over the keyboard/pause state and flickering open/closed.
+  let activeModal = null; // null | 'help' | 'comments'
+  let modalInducedPause = false;
   function openHelp(){
-    if(!state.running || state.inBanner) return;
+    if(!state.running || state.inBanner || activeModal) return;
     SFX.unlock(); SFX.click();
     if(!state.paused){
       pauseGame();
-      helpInducedPause = true;
+      modalInducedPause = true;
     }
+    activeModal = 'help';
     document.getElementById('helpOverlay').style.display = 'flex';
   }
   function closeHelp(){
+    if(activeModal !== 'help') return;
     SFX.click();
     document.getElementById('helpOverlay').style.display = 'none';
-    if(helpInducedPause){
+    activeModal = null;
+    if(modalInducedPause){
       resumeGame();
-      helpInducedPause = false;
+      modalInducedPause = false;
     }
     updatePauseBtnLabel();
   }
@@ -4044,25 +4155,28 @@
   const FEEDBACK_EMAIL = 'attritable.swarm.game.contact@gmail.com';
   const FEEDBACK_EMAIL_CONFIGURED = FEEDBACK_EMAIL && FEEDBACK_EMAIL !== 'your-email@example.com';
 
-  let commentsInducedPause = false;
   const commentsTextEl = document.getElementById('commentsText');
   const commentsCountEl = document.getElementById('commentsCount');
 
   function openComments(){
+    if(activeModal) return;
     SFX.unlock(); SFX.click();
     if(state.running && !state.inBanner && !state.paused){
       pauseGame();
-      commentsInducedPause = true;
+      modalInducedPause = true;
     }
+    activeModal = 'comments';
     commentsCountEl.textContent = commentsTextEl.value.length+' / 500';
     document.getElementById('commentsOverlay').style.display = 'flex';
   }
   function closeComments(){
+    if(activeModal !== 'comments') return;
     SFX.click();
     document.getElementById('commentsOverlay').style.display = 'none';
-    if(commentsInducedPause){
+    activeModal = null;
+    if(modalInducedPause){
       resumeGame();
-      commentsInducedPause = false;
+      modalInducedPause = false;
     }
     updatePauseBtnLabel();
   }
@@ -4106,6 +4220,7 @@
     state.dailyMode = false;
     document.getElementById('dailyBadge').style.display = 'none';
     document.getElementById('startOverlay').style.display='none';
+    trackEvent('game_start', {mode:'standard'});
     resetGame();
   });
 
@@ -4131,6 +4246,7 @@
       state.dailyMode = true;
       document.getElementById('dailyBadge').style.display = '';
       document.getElementById('startOverlay').style.display='none';
+      trackEvent('game_start', {mode:'daily'});
       resetGame();
     });
   }
@@ -4181,6 +4297,7 @@
     SFX.click();
     document.getElementById('endOverlay').style.display='none';
     document.getElementById('pauseOverlay').style.display='none';
+    trackEvent('game_restart', {mode: state.dailyMode?'daily':'standard'});
     resetGame();
   });
 
@@ -4223,16 +4340,31 @@
     c.beginPath(); c.moveTo(120,165); c.lineTo(w-120,165); c.stroke();
 
     c.fillStyle = '#2b2a22';
-    c.font = 'bold 30px Courier New';
-    c.fillText('CALLSIGN: '+state.callsign, w/2, 240);
+    c.font = 'bold 28px Courier New';
+    c.fillText('CALLSIGN: '+state.callsign, w/2, 210);
 
-    c.font = 'bold 64px Courier New';
+    c.font = 'bold 22px Courier New';
+    c.fillStyle = '#c48e2d';
+    c.fillText('RANK: '+getRank(state.score).title, w/2, 248);
+
+    c.font = 'bold 60px Courier New';
     c.fillStyle = '#7c2e28';
-    c.fillText(Math.round(state.score)+' PTS', w/2, 340);
+    c.fillText(Math.round(state.score)+' PTS', w/2, 330);
 
-    c.font = '28px Courier New';
+    c.font = '26px Courier New';
     c.fillStyle = '#454f34';
-    c.fillText('LEVEL REACHED: '+state.level, w/2, 400);
+    c.fillText('LEVEL REACHED: '+state.level, w/2, 385);
+
+    c.font = 'bold 22px Courier New';
+    c.fillStyle = '#454f34';
+    c.fillText('ENEMIES NEUTRALIZED: '+state.kills, w/2, 420);
+
+    c.strokeStyle = '#2b2a22'; c.lineWidth = 2;
+    c.beginPath(); c.moveTo(120,445); c.lineTo(w-120,445); c.stroke();
+
+    c.font = '18px Courier New';
+    c.fillStyle = '#4a4636';
+    c.fillText('BEST EFFICIENCY STREAK: x'+state.bestStreak+'  |  DRONES LAUNCHED: '+Math.round(state.dronesLaunched), w/2, 480);
 
     c.font = '16px Courier New';
     c.fillStyle = '#4a4636';
@@ -4259,6 +4391,7 @@
           } else {
             await navigator.share({title:'Attritable Swarm', text, url});
           }
+          trackEvent('share', {method:'native'});
         } catch(err){
           // user cancelled the native share sheet — not an error, do nothing
         }
@@ -4272,14 +4405,28 @@
     const text = encodeURIComponent(buildShareText());
     const url = encodeURIComponent(window.location.href);
     window.open('https://twitter.com/intent/tweet?text='+text+'&url='+url, '_blank', 'noopener,noreferrer');
+    trackEvent('share', {method:'twitter'});
   });
   document.getElementById('shareFbBtn').addEventListener('click', ()=>{
     const url = encodeURIComponent(window.location.href);
     window.open('https://www.facebook.com/sharer/sharer.php?u='+url, '_blank', 'noopener,noreferrer');
+    trackEvent('share', {method:'facebook'});
+  });
+  document.getElementById('shareWaBtn').addEventListener('click', ()=>{
+    const text = encodeURIComponent(buildShareText()+' '+window.location.href);
+    window.open('https://wa.me/?text='+text, '_blank', 'noopener,noreferrer');
+    trackEvent('share', {method:'whatsapp'});
+  });
+  document.getElementById('shareRedditBtn').addEventListener('click', ()=>{
+    const url = encodeURIComponent(window.location.href);
+    const title = encodeURIComponent(buildShareText());
+    window.open('https://www.reddit.com/submit?url='+url+'&title='+title, '_blank', 'noopener,noreferrer');
+    trackEvent('share', {method:'reddit'});
   });
   document.getElementById('shareCopyBtn').addEventListener('click', async ()=>{
     const text = buildShareText()+' '+window.location.href;
     try{ await navigator.clipboard.writeText(text); }catch(e){}
+    trackEvent('share', {method:'copy_text'});
   });
   document.getElementById('shareDownloadBtn').addEventListener('click', ()=>{
     buildScoreCardBlob((blob)=>{
@@ -4289,6 +4436,7 @@
       link.download = 'attritable-swarm-score.png';
       link.click();
     });
+    trackEvent('share', {method:'download_image'});
   });
   document.getElementById('shareCloseBtn').addEventListener('click', ()=>{
     document.getElementById('shareFallbackOverlay').style.display = 'none';
