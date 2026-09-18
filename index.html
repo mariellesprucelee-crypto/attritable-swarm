@@ -145,6 +145,8 @@
     -webkit-user-select:text; user-select:text;
     color:var(--ink-soft); line-height:1.7; font-size:13px;
   }
+  body.has-touch{ overflow:hidden; }
+  body.has-touch #seoInfo{ display:none; }
   #seoInfo h1{ font-size:20px; letter-spacing:2px; color:var(--olive); margin:0 0 8px; }
   #seoInfo h2{ font-size:14px; letter-spacing:1.5px; color:var(--red); margin:22px 0 8px; }
   #seoInfo a{ color:var(--olive); }
@@ -191,17 +193,17 @@
   #hud{
     position:absolute; top:0; left:0; width:100%; z-index:10;
     display:flex; justify-content:space-between; align-items:flex-start;
-    padding:clamp(6px,2vw,14px) clamp(6px,2vw,18px); pointer-events:none;
+    padding:clamp(6px,2vmin,14px) clamp(6px,2vw,18px); pointer-events:none;
   }
   .panel{
     background:rgba(219,213,189,0.88);
     border:2px solid var(--ink-soft);
     box-shadow: inset 0 0 0 1px rgba(43,42,34,0.25), 2px 2px 0 rgba(43,42,34,0.15);
-    padding:clamp(4px,1.4vw,8px) clamp(6px,1.8vw,12px);
+    padding:clamp(4px,1.4vmin,8px) clamp(6px,1.8vw,12px);
     pointer-events:auto;
   }
   .stamp{
-    font-weight:bold; letter-spacing:clamp(0.5px,0.4vw,2px); font-size:clamp(8px,2.3vw,11px); color:var(--olive);
+    font-weight:bold; letter-spacing:clamp(0.5px,0.4vw,2px); font-size:clamp(8px,2.3vmin,11px); color:var(--olive);
     border:1.5px solid var(--olive); padding:2px clamp(3px,1vw,6px); display:inline-block;
     transform:rotate(-2deg); text-transform:uppercase;
   }
@@ -211,7 +213,7 @@
     max-width:clamp(110px, 42vw, 640px);
   }
   #gameTitle .name{
-    font-weight:bold; letter-spacing:clamp(1px, 0.9vw, 8px); font-size:clamp(10px, 2.3vw, 26px);
+    font-weight:bold; letter-spacing:clamp(1px, 0.9vw, 8px); font-size:clamp(10px, 2.3vmin, 26px);
     color:var(--olive);
     border:2px solid var(--ink); border-top:none; border-bottom:none;
     padding:2px clamp(6px, 1.8vw, 22px); text-transform:uppercase;
@@ -222,9 +224,9 @@
   #gameTitle .rule{ height:2px; background:var(--ink); }
   @media (max-width:600px){
     #gameTitle{ max-width:clamp(80px, 26vw, 640px); top:6px; }
-    #gameTitle .name{ font-size:clamp(6px,1.6vw,26px); letter-spacing:clamp(0.3px,0.4vw,8px); padding:1px clamp(3px,1vw,22px); }
+    #gameTitle .name{ font-size:clamp(6px,1.6vmin,26px); letter-spacing:clamp(0.3px,0.4vw,8px); padding:1px clamp(3px,1vw,22px); }
   }
-  #killFeed{position:absolute; top:clamp(46px,7.5vh,68px); left:50%; transform:translateX(-50%); z-index:11; width:min(54vw,420px); max-width:calc(100% - 40px); background:rgba(219,213,189,0.82); border:1px solid var(--ink-soft); box-shadow:1px 1px 0 rgba(43,42,34,0.18); padding:2px 7px; text-align:center; pointer-events:none; overflow:hidden; white-space:nowrap; font-size:clamp(7px,1.7vw,10px); letter-spacing:0.8px; color:var(--ink-soft); opacity:0.92; display:flex; align-items:baseline; justify-content:center; gap:6px;}
+  #killFeed{position:absolute; top:clamp(46px,7.5vh,68px); left:50%; transform:translateX(-50%); z-index:11; width:min(54vw,420px); max-width:calc(100% - 40px); background:rgba(219,213,189,0.82); border:1px solid var(--ink-soft); box-shadow:1px 1px 0 rgba(43,42,34,0.18); padding:2px 7px; text-align:center; pointer-events:none; overflow:hidden; white-space:nowrap; font-size:clamp(7px,1.7vmin,10px); letter-spacing:0.8px; color:var(--ink-soft); opacity:0.92; display:flex; align-items:baseline; justify-content:center; gap:6px;}
   body.has-touch #killFeed{
     max-width:calc(100% - 16px);
     background:rgba(219,213,189,0.4);
@@ -240,15 +242,15 @@
   #muteBtn[aria-pressed="true"]{background:var(--red);}
   #topLeft{ min-width:clamp(66px, 18vw, 150px); max-width:36vw; }
   .commandHead{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:4px;}
-  #topLeft .title{ font-size:clamp(8px,2.6vw,13px); font-weight:bold; letter-spacing:1px; margin-bottom:0;}
-  .rankInsignia{width:clamp(30px,8vw,42px);height:clamp(20px,5.3vw,28px);display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--ink);}
+  #topLeft .title{ font-size:clamp(8px,2.6vmin,13px); font-weight:bold; letter-spacing:1px; margin-bottom:0;}
+  .rankInsignia{width:clamp(30px,8vmin,42px);height:clamp(20px,5.3vmin,28px);display:flex;align-items:center;justify-content:center;flex:0 0 auto;color:var(--ink);}
   .rankInsignia svg{width:90%;height:90%;display:block;overflow:visible;}
   .rankInsignia .rankFill{fill:currentColor;}
   .rankInsignia .rankStroke{fill:none;stroke:currentColor;stroke-width:2.2;stroke-linecap:round;stroke-linejoin:round;}
   .rankInsignia .rankStar{fill:currentColor;}
   .rankPip-plain{display:block;width:5px;height:5px;border:1px solid var(--ink-soft);border-radius:50%;opacity:.25;}
   #topRight{ text-align:right; min-width:clamp(88px, 28vw, 200px); max-width:40vw; }
-  .row{ display:flex; align-items:center; gap:6px; margin:3px 0; font-size:clamp(8px,2.4vw,12px); }
+  .row{ display:flex; align-items:center; gap:6px; margin:3px 0; font-size:clamp(8px,2.4vmin,12px); }
   .barOuter{
     width:clamp(64px, 18vw, 150px); height:12px; background:var(--paper-shadow);
     border:1px solid var(--ink-soft); position:relative; overflow:hidden;
@@ -256,19 +258,19 @@
   .barInner{ height:100%; }
   #healthBar{ background: linear-gradient(90deg, var(--red-bright), var(--red)); }
   #arsenalBar{ background: linear-gradient(90deg, var(--olive-light), var(--olive)); }
-  #regenNote{ font-size:clamp(7px,2vw,9px); color:var(--ink-soft); letter-spacing:0.5px; }
+  #regenNote{ font-size:clamp(7px,2vmin,9px); color:var(--ink-soft); letter-spacing:0.5px; }
 
   #bottomBar{
     position:absolute; bottom:0; left:0; width:100%; z-index:10;
     display:flex; justify-content:center; align-items:center; gap:clamp(6px,2.4vw,20px);
-    padding:clamp(6px,2vw,12px); pointer-events:none;
+    padding:clamp(6px,2vmin,12px); pointer-events:none;
   }
   #deployPanel{
     display:flex; align-items:center; gap:clamp(4px,1.6vw,14px); pointer-events:auto;
   }
-  #deployPanel .label{ font-size:clamp(7px,2.2vw,11px); letter-spacing:clamp(0.3px,0.4vw,1px); white-space:nowrap; }
+  #deployPanel .label{ font-size:clamp(7px,2.2vmin,11px); letter-spacing:clamp(0.3px,0.4vw,1px); white-space:nowrap; }
   #sliderVal{
-    font-weight:bold; font-size:clamp(10px,2.8vw,15px); color:var(--red);
+    font-weight:bold; font-size:clamp(10px,2.8vmin,15px); color:var(--red);
     min-width:clamp(38px,11vw,70px); text-align:center;
   }
   #sliderWrap{ position:relative; width:clamp(90px, 38vw, 220px); }
@@ -421,14 +423,14 @@
   #tcMove{ display:flex; flex-direction:row; gap:clamp(6px,3vw,12px); pointer-events:auto; }
   .touch-btn{
     pointer-events:auto; -webkit-tap-highlight-color:transparent; user-select:none;
-    width:clamp(38px,11vw,58px); height:clamp(38px,11vw,58px); border-radius:50%;
+    width:clamp(38px,11vmin,58px); height:clamp(38px,11vmin,58px); border-radius:50%;
     background:rgba(69,79,52,0.88); color:var(--paper);
     border:2px solid var(--ink); box-shadow:2px 2px 0 rgba(0,0,0,0.3);
     font-size:clamp(13px,4vw,20px); display:flex; align-items:center; justify-content:center;
     font-family:inherit;
   }
   #tcFire{
-    width:clamp(54px,15vw,88px); height:clamp(54px,15vw,88px); border-radius:50%;
+    width:clamp(54px,15vmin,88px); height:clamp(54px,15vmin,88px); border-radius:50%;
     background:rgba(124,46,40,0.88); font-size:clamp(8px,2.4vw,11px); font-weight:bold; letter-spacing:1px;
   }
   .touch-btn:active{ filter:brightness(1.2); }
