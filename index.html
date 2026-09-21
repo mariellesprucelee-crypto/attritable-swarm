@@ -125,6 +125,7 @@
     --steel:#5c6b63;
     --red:#7c2e28;
     --red-bright:#a13a30;
+    --ui-scale:1;
   }
   *{box-sizing:border-box;}
   html,body{
@@ -434,6 +435,34 @@
     background:rgba(124,46,40,0.88); font-size:clamp(8px,2.4vw,11px); font-weight:bold; letter-spacing:1px;
   }
   .touch-btn:active{ filter:brightness(1.2); }
+
+  /* Desktop/laptop-only: shrink HUD chrome using the real measured wrap
+     height (--ui-scale, set in computeLayout()) instead of fixed max sizes.
+     Touch devices keep the vmin-based sizing above untouched. */
+  body:not(.has-touch) #hud{
+    padding-top:clamp(6px, calc(14px * var(--ui-scale)), 14px);
+    padding-bottom:clamp(6px, calc(14px * var(--ui-scale)), 14px);
+  }
+  body:not(.has-touch) .panel{
+    padding-top:clamp(4px, calc(8px * var(--ui-scale)), 8px);
+    padding-bottom:clamp(4px, calc(8px * var(--ui-scale)), 8px);
+  }
+  body:not(.has-touch) .stamp{ font-size:clamp(8px, calc(11px * var(--ui-scale)), 11px); }
+  body:not(.has-touch) #gameTitle .name{ font-size:clamp(10px, calc(26px * var(--ui-scale)), 26px); }
+  body:not(.has-touch) #killFeed{ font-size:clamp(7px, calc(10px * var(--ui-scale)), 10px); }
+  body:not(.has-touch) #topLeft .title{ font-size:clamp(8px, calc(13px * var(--ui-scale)), 13px); }
+  body:not(.has-touch) .rankInsignia{
+    width:clamp(30px, calc(42px * var(--ui-scale)), 42px);
+    height:clamp(20px, calc(28px * var(--ui-scale)), 28px);
+  }
+  body:not(.has-touch) .row{ font-size:clamp(8px, calc(12px * var(--ui-scale)), 12px); }
+  body:not(.has-touch) #regenNote{ font-size:clamp(7px, calc(9px * var(--ui-scale)), 9px); }
+  body:not(.has-touch) #bottomBar{
+    padding-top:clamp(6px, calc(12px * var(--ui-scale)), 12px);
+    padding-bottom:clamp(6px, calc(12px * var(--ui-scale)), 12px);
+  }
+  body:not(.has-touch) #deployPanel .label{ font-size:clamp(7px, calc(11px * var(--ui-scale)), 11px); }
+  body:not(.has-touch) #sliderVal{ font-size:clamp(10px, calc(15px * var(--ui-scale)), 15px); }
 </style>
 </head>
 
@@ -833,6 +862,15 @@
   let SCALE = 1.5;
   let marginX, baseY, laneSpacing, colSpacing, fieldTop;
   function computeLayout(){
+    // Desktop/laptop HUD chrome (fonts, panel padding, insignia size) is sized
+    // off this scale instead of fixed max px values, so a short-but-wide
+    // browser window actually shrinks the chrome and gives the field its
+    // space back — vw/vmin alone don't do this because typical laptop widths
+    // are wide enough to hit the old fixed max sizes regardless of height.
+    // Touch devices are untouched (scoped via body:not(.has-touch) in CSS).
+    const uiScale = Math.max(0.55, Math.min(1, H/760));
+    document.documentElement.style.setProperty('--ui-scale', uiScale.toFixed(3));
+
     // Measure the actual on-screen HUD elements instead of guessing fixed margins,
     // so the field never draws underneath the panels/slider/touch controls at any
     // screen size, font scale, or with touch controls shown or hidden. All rects
