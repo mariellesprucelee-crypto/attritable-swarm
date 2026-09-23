@@ -456,7 +456,7 @@
     height:clamp(20px, calc(28px * var(--ui-scale)), 28px);
   }
   body:not(.has-touch) .row{ font-size:clamp(8px, calc(12px * var(--ui-scale)), 12px); }
-  body:not(.has-touch) #regenNote{ font-size:clamp(7px, calc(9px * var(--ui-scale)), 9px); }
+  body:not(.has-touch) #regenNote, body:not(.has-touch) #streakNote{ font-size:clamp(7px, calc(9px * var(--ui-scale)), 9px); }
   body:not(.has-touch) #bottomBar{
     padding-top:clamp(6px, calc(12px * var(--ui-scale)), 12px);
     padding-bottom:clamp(6px, calc(12px * var(--ui-scale)), 12px);
@@ -515,6 +515,7 @@
         <div id="rankInsignia" class="rankInsignia" aria-label="SECOND LIEUTENANT rank insignia" title="SECOND LIEUTENANT"><span class="rankPip-plain"></span></div>
       </div>
       <span class="stamp" id="levelStamp">LEVEL 01</span>
+      <span class="stamp" id="progressBadge" style="margin-left:4px; border-color:var(--steel); color:var(--steel);" title="Targets cleared this level">0/0</span>
       <span class="stamp" id="dailyBadge" style="display:none; margin-left:4px;">DAILY OP</span>
       <div class="row" style="justify-content:space-between;"><span>SCORE: <b id="scoreVal">0</b></span><span>BEST: <b id="highVal">0</b></span></div>
       <div id="hudBtnRow">
@@ -535,6 +536,7 @@
       </div>
       <div class="row" style="justify-content:flex-end;"><b id="arsenalText">2500 / 2500</b></div>
       <div id="regenNote">REGEN: +0/s</div>
+      <div id="streakNote" style="display:none; font-size:clamp(7px,2vmin,9px); color:var(--olive-light); letter-spacing:0.5px; text-align:right; margin-top:2px;">STREAK x<span id="streakVal">0</span></div>
     </div>
   </div>
 
@@ -882,7 +884,9 @@
     // down via clamp() at small widths, so it doesn't need as much clearance
     const topPad = hasTouch ? 26 : 50;
     const bottomPad = hasTouch ? 6 : 10;
-    const sidePad = hasTouch ? 20 : 60;
+    // narrow phones (7 lanes gets tight below ~400px) get a tighter side pad
+    // to claw back a little width per lane instead of over-shrinking sprites
+    const sidePad = hasTouch ? (W<400 ? 8 : 20) : 60;
 
     let topMargin = 90;
     const topLeftEl = document.getElementById('topLeft');
@@ -1384,6 +1388,26 @@
     ctx.restore();
   }
 
+  function drawSensorSweep(){
+    // a faint horizontal sweep line drifting down the field and looping,
+    // selling a "live sensor feed" read on top of the static sector labels
+    const cycle = 4200;
+    const now = performance.now();
+    const f = (now % cycle) / cycle;
+    const y = fieldTop + f*(baseY-fieldTop);
+    const fadeEdge = Math.min(1, f*8, (1-f)*8); // fades in/out at the very top/bottom of its sweep
+    ctx.save();
+    ctx.globalAlpha = 0.22*fadeEdge;
+    const sweepGrad = ctx.createLinearGradient(marginX, y, marginX+laneSpacing*LANES, y);
+    sweepGrad.addColorStop(0, 'rgba(90,105,66,0)');
+    sweepGrad.addColorStop(0.5, 'rgba(90,105,66,0.9)');
+    sweepGrad.addColorStop(1, 'rgba(90,105,66,0)');
+    ctx.strokeStyle = sweepGrad;
+    ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.moveTo(marginX, y); ctx.lineTo(marginX+laneSpacing*LANES, y); ctx.stroke();
+    ctx.restore();
+  }
+
   function drawArtilleryHazard(){
     if(!state.artillery || state.artillery.resolved) return;
     const now = performance.now();
@@ -1426,6 +1450,17 @@
       ctx.strokeRect(x0, top, laneSpacing, bottom-top);
     }
 
+    // subtle highlight on the player's current lane — helps track position at a glance
+    const plX0 = marginX + state.playerLane*laneSpacing;
+    const laneGlow = ctx.createLinearGradient(0, top, 0, bottom);
+    laneGlow.addColorStop(0, 'rgba(219,213,189,0)');
+    laneGlow.addColorStop(1, 'rgba(219,213,189,0.22)');
+    ctx.fillStyle = laneGlow;
+    ctx.fillRect(plX0, top, laneSpacing, bottom-top);
+    ctx.strokeStyle = 'rgba(69,79,52,0.4)';
+    ctx.lineWidth = 1.5;
+    ctx.strokeRect(plX0, top, laneSpacing, bottom-top);
+
     // atmospheric depth haze — darker/cooler near the horizon, clears toward the player
     const hazeGrad = ctx.createLinearGradient(0, top, 0, bottom);
     hazeGrad.addColorStop(0, 'rgba(74,70,54,0.16)');
@@ -1437,6 +1472,7 @@
     if(FEATURES.TERRAIN_CONTOURS) drawTerrainContours();
     drawTerrainDecor();
     drawSectorLabels();
+    drawSensorSweep();
     drawArtilleryHazard();
 
     // faint depth guides every couple of units, so distance still reads at a glance
@@ -1457,6 +1493,16 @@
     const a = toScreen(2,-0.5), b = toScreen(2,LANES-0.5);
     ctx.beginPath(); ctx.moveTo(a.x,a.y); ctx.lineTo(b.x,b.y); ctx.stroke();
     ctx.setLineDash([]);
+    // one small sandbag emplacement per lane, sitting right on the line
+    for(let row=0; row<LANES; row++){
+      const sb = toScreen(2, row+0.5);
+      ctx.save();
+      ctx.translate(sb.x, sb.y);
+      ctx.scale(SCALE*0.7, SCALE*0.7);
+      ctx.globalAlpha = 0.5;
+      drawSandbagPiece(row%3);
+      ctx.restore();
+    }
 
     drawDustMotes();
 
@@ -1464,6 +1510,24 @@
     ctx.save();
     ctx.globalAlpha = 0.9;
     ctx.fillStyle = noisePattern;
+    ctx.fillRect(-30,-30,W+60,H+60);
+    ctx.restore();
+
+    drawWarTint();
+  }
+
+  // The battlefield gets progressively darker and more war-torn as levels
+  // climb — a cheap global wash rather than re-deriving every draw call's
+  // colors, so the environment still visually escalates alongside difficulty.
+  function drawWarTint(){
+    const tint = Math.min(1, Math.max(0, (state.level-1)/35)); // ramps in gradually, full by ~level 36
+    if(tint<=0) return;
+    ctx.save();
+    ctx.globalAlpha = 0.28*tint;
+    ctx.fillStyle = '#332e26';
+    ctx.fillRect(-30,-30,W+60,H+60);
+    ctx.globalAlpha = 0.10*tint;
+    ctx.fillStyle = '#7c2e28';
     ctx.fillRect(-30,-30,W+60,H+60);
     ctx.restore();
   }
@@ -1477,7 +1541,7 @@
     group:    {key:'group',    name:'VEHICLE CONVOY',  hp:140, dmgPerDrone:2.6, spinUp:2.0, dps:5.0,  reward:70,  w:52, h:24},
     tank:     {key:'tank',     name:'ENEMY TANK',      hp:230, dmgPerDrone:2.1, spinUp:2.5, dps:8.0,  reward:120, w:44, h:26},
     plant:    {key:'plant',    name:'WEAPONS PLANT',   hp:440, dmgPerDrone:1.5, spinUp:3.5, dps:13.0, reward:250, w:50, h:56},
-    helo:     {key:'helo',     name:'ATTACK HELICOPTER',hp:650,dmgPerDrone:1.1, spinUp:2.5, dps:20.0, reward:500, w:60, h:40},
+    helo:     {key:'helo',     name:'ATTACK HELICOPTER',hp:650,dmgPerDrone:1.1, spinUp:2.5, dps:20.0, reward:500, w:60, h:40, isBoss:true},
     jet:        {key:'jet',        name:'FIGHTER JET',     hp:500, dmgPerDrone:1.3,  spinUp:1.8, dps:16.0, reward:400, w:56, h:40},
     uas:        {key:'uas',        name:'ENEMY UAS',       hp:580, dmgPerDrone:1.2,  spinUp:3.0, dps:15.0, reward:420, w:68, h:48},
     tankColumn: {key:'tankColumn', name:'TANK COLUMN',     hp:620, dmgPerDrone:1.15, spinUp:3.2, dps:17.0, reward:450, w:74, h:26},
@@ -1547,6 +1611,8 @@
     particles:[],
     salvos:[],
     explosions:[],
+    floatingTexts:[],
+    levelTotalTargets:0,
     paused:false,
     pauseStartedAt:0,
     comboStreak:0,
@@ -1598,19 +1664,22 @@
   }
 
   function sliderCapForLevel(level){
-    if(level<=9) return 100+(level-1)*50; // 100 at level 1, up to 500 at level 9
-    return 500+(level-9)*10;              // +10/level from level 10 onward
+    if(level<=9) return 100+(level-1)*50;        // 100 at level 1, up to 500 at level 9
+    if(level<=20) return 500+(level-9)*10;       // +10/level, 510-610 across levels 10-20
+    return 610+(level-20)*35;                    // steeper climb from level 20 on, tracking arsenalCap growth better
   }
 
   function startLevel(level){
     state.level = level;
     state.spawnQueue = buildLevelQueue(level);
+    state.levelTotalTargets = state.spawnQueue.filter(t=>!t.isCrate).length;
     state.targets = [];
     state.crates = []; // any uncollected crate from the last level is gone — use it or lose it
     state.lastSpawn = performance.now()-1700;
     state.spawnInterval = Math.max(650, 1650-level*80); // faster early cadence (was 1850-level*85)
     state.levelStartTime = performance.now();
     document.getElementById('levelStamp').textContent = 'LEVEL '+String(level).padStart(2,'0');
+    updateLevelProgressBadge();
 
     const cap = sliderCapForLevel(level);
     slider.max = cap;
@@ -1618,6 +1687,17 @@
     sliderValLabel.textContent = slider.value+' UNITS';
 
     maybeScheduleEvent(level);
+  }
+
+  function updateLevelProgressBadge(){
+    const el = document.getElementById('progressBadge');
+    if(!el) return;
+    const remaining = state.spawnQueue.filter(t=>!t.isCrate).length
+      + state.targets.length
+      + state.telegraphs.filter(g=>!g.type.isCrate).length;
+    const total = state.levelTotalTargets||0;
+    const done = Math.max(0, Math.min(total, total-remaining));
+    el.textContent = done+'/'+total;
   }
 
   // ---------- META-PROGRESSION (MOTOR POOL) ----------
@@ -1747,6 +1827,13 @@
           removeTarget(t);
         }
       }
+      for(const c of [...state.crates]){
+        if(c.lane===lane){
+          const p = toScreen(c.col, c.lane);
+          spawnExplosion(p.x, p.y-10*SCALE, 250);
+          removeCrate(c);
+        }
+      }
       for(let c=1;c<=9;c+=2){
         const p = toScreen(c, lane);
         spawnExplosion(p.x, p.y, 220+Math.random()*120);
@@ -1801,6 +1888,7 @@
     state.particles = [];
     state.salvos = [];
     state.explosions = [];
+    state.floatingTexts = [];
     state.telegraphs = [];
     state.crates = [];
     state.paused = false;
@@ -1811,6 +1899,7 @@
     state.killsByType = {};
     state.cratesCollected = 0;
     state.damageTaken = 0;
+    state.levelTotalTargets = 0;
     state.runStartTime = performance.now();
     state.lastEventLevel = 0;
     state.pendingEventType = null;
@@ -1856,6 +1945,10 @@
     const col = 7 + rand()*2.5;
     state.telegraphs.push({ type, lane, col, born: now, dur: TELEGRAPH_DUR });
     state.lastSpawn = now;
+    if(type.isBoss){
+      showEventBanner(type.name+' INBOUND', 'HOSTILE CONTACT — HIGH THREAT', 2800);
+      SFX.alarm();
+    }
   }
 
   function resolveTelegraphs(now){
@@ -2096,10 +2189,9 @@
 
     // damage lands only once the swarm touches down on the target
     state.salvos.push({ target, dmg, sent, startTime: performance.now(), dur });
-
-    if(state.arsenal<=0){
-      endGame('ARSENAL DEPLETED');
-    }
+    // arsenal-depleted end check happens in update(), once any in-flight
+    // salvos have actually resolved — ending here would erase the final
+    // release's damage/score even if it was the killing blow
   }
 
   const SPLASH_RADIUS = 115; // large enough to catch a second target sitting right on top of the first
@@ -2108,15 +2200,22 @@
     state.shakeMag = Math.max(state.shakeMag, mag);
   }
 
+  function spawnFloatingText(x, y, text, color, size){
+    state.floatingTexts.push({ x, y, text, color, size: size||11, t:0, dur:650+Math.random()*150 });
+  }
+
   function applyHit(target, dmg, refundSent){
     target.hp -= dmg;
     target.hitFlash = 1;
+    const p = toScreen(target.col, target.lane);
+    if(dmg>=1) spawnFloatingText(p.x, p.y-30*SCALE, '-'+Math.round(dmg), 'rgba(219,213,189,0.95)', 11);
     SFX.impact();
     if(target.type.key==='helo') triggerShake(6); // every hit on a boss has extra weight
     if(target.hp<=0){
       const timeBonus = Math.max(0, Math.round(40 - Math.max(0,target.age)*3));
       state.score += target.type.reward + timeBonus;
       state.killsByType[target.type.key] = (state.killsByType[target.type.key]||0)+1;
+      spawnFloatingText(p.x, p.y-48*SCALE, '+'+(target.type.reward+timeBonus), '#c48e2d', 14);
       updateRankInsignia();
       pushKillFeed(target);
       SFX.kill();
@@ -2125,6 +2224,9 @@
         triggerComboFlash('HVT NEUTRALIZED +'+target.type.reward, 0, true);
       }
       if(refundSent>0){
+        // refundSent is 0 for splash kills (see resolveSalvos) — a splash kill
+        // intentionally neither builds nor breaks the efficiency streak, since
+        // it wasn't a deliberate, aimed release against that target
         const overkill = Math.max(0, -target.hp);
         const refund = Math.min(refundSent, Math.floor(overkill/target.type.dmgPerDrone));
         state.arsenal = Math.min(state.arsenalCap, state.arsenal+refund);
@@ -2259,6 +2361,14 @@
 
     // resolve any drone salvos that have completed their flight
     resolveSalvos(now);
+    if(!state.running) return; // a salvo resolving may have just ended the run via other means
+
+    // arsenal depleted: held back until every in-flight salvo has actually
+    // landed, so a final release that would've scored a kill isn't erased
+    if(state.arsenal<=0 && state.salvos.length===0){
+      endGame('ARSENAL DEPLETED');
+      return;
+    }
 
     // particles
     for(const p of [...state.particles]){
@@ -2270,6 +2380,12 @@
     for(const ex of [...state.explosions]){
       ex.t += dt*1000;
       if(ex.t>=ex.dur) state.explosions.splice(state.explosions.indexOf(ex),1);
+    }
+
+    // floating damage/reward numbers
+    for(const ft of [...state.floatingTexts]){
+      ft.t += dt*1000;
+      if(ft.t>=ft.dur) state.floatingTexts.splice(state.floatingTexts.indexOf(ft),1);
     }
 
     // level complete check — held back until any pending/active event has
@@ -2412,9 +2528,37 @@
     document.getElementById('scoreVal').textContent = Math.round(state.score);
     document.getElementById('highVal').textContent = Math.round(state.highScore);
     document.getElementById('bestBadgeVal').textContent = Math.round(state.highScore);
-    document.getElementById('healthBar').style.width = Math.max(0,state.health)+'%';
-    document.getElementById('arsenalBar').style.width = (100*state.arsenal/state.arsenalCap)+'%';
+
+    const healthBarEl = document.getElementById('healthBar');
+    const healthFrac = state.health/state.maxHealth;
+    healthBarEl.style.width = Math.max(0,state.health)+'%';
+    // bar itself darkens/deepens toward a critical tone as health drops, on
+    // top of the existing screen-edge warning border, so the bar reads as
+    // urgent even if you're not looking at the frame
+    healthBarEl.style.background = healthFrac < 0.15
+      ? 'linear-gradient(90deg, #c9483a, #8f2e24)'
+      : healthFrac < 0.4
+        ? 'linear-gradient(90deg, var(--red-bright), #8a3128)'
+        : 'linear-gradient(90deg, var(--red-bright), var(--red))';
+
+    const arsenalBarEl = document.getElementById('arsenalBar');
+    const arsenalFrac = state.arsenal/state.arsenalCap;
+    arsenalBarEl.style.width = (100*arsenalFrac)+'%';
+    arsenalBarEl.style.background = arsenalFrac < 0.15
+      ? 'linear-gradient(90deg, #c48e2d, #a1653a)'
+      : 'linear-gradient(90deg, var(--olive-light), var(--olive))';
+
     document.getElementById('arsenalText').textContent = Math.floor(state.arsenal)+' / '+state.arsenalCap;
+
+    updateLevelProgressBadge();
+
+    const streakEl = document.getElementById('streakNote');
+    if(state.comboStreak>0){
+      streakEl.style.display = 'block';
+      document.getElementById('streakVal').textContent = state.comboStreak;
+    } else {
+      streakEl.style.display = 'none';
+    }
   }
 
   // ---------- SCREEN FLASHES ----------
@@ -3611,14 +3755,6 @@
         ctx.fillStyle = '#dbd5bd';
         ctx.fillRect(-3,-18,6,16);
         ctx.fillRect(-12,-12,24,6);
-        // stenciled marking + serial number
-        ctx.fillStyle = 'rgba(43,42,34,0.65)';
-        ctx.font = 'bold 5px Courier New';
-        ctx.textAlign = 'center';
-        ctx.fillText('SUPPLY', 0, -1.5);
-        ctx.font = '2.6px Courier New';
-        ctx.fillStyle = 'rgba(43,42,34,0.5)';
-        ctx.fillText('SN-4471', -9, -1.5);
         break;
     }
     if(flashCol){
@@ -3815,6 +3951,55 @@
     }
   }
 
+  function drawFloatingTexts(){
+    for(const ft of state.floatingTexts){
+      const f = Math.min(1, ft.t/ft.dur);
+      const y = ft.y - f*24*SCALE;
+      ctx.save();
+      ctx.globalAlpha = 1-f;
+      ctx.font = 'bold '+(ft.size*SCALE)+'px Courier New';
+      ctx.textAlign = 'center';
+      ctx.strokeStyle = 'rgba(43,42,34,0.55)';
+      ctx.lineWidth = 2.4;
+      ctx.strokeText(ft.text, ft.x, y);
+      ctx.fillStyle = ft.color;
+      ctx.fillText(ft.text, ft.x, y);
+      ctx.restore();
+    }
+  }
+
+  // Fixed-position (unaffected by screen shake) health readout for any
+  // boss-tier target currently on the board — stacks if more than one is up.
+  function drawBossHealthBars(){
+    const bosses = state.targets.filter(t=>t.type.isBoss);
+    if(!bosses.length) return;
+    const boxW = Math.min(380, W*0.76);
+    const boxH = 32;
+    let y = fieldTop + 4;
+    for(const boss of bosses){
+      const x = W/2 - boxW/2;
+      ctx.save();
+      ctx.fillStyle = 'rgba(219,213,189,0.94)';
+      ctx.fillRect(x, y, boxW, boxH);
+      ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 2;
+      ctx.strokeRect(x, y, boxW, boxH);
+      ctx.font = 'bold 11px Courier New';
+      ctx.textAlign = 'center';
+      ctx.fillStyle = '#7c2e28';
+      ctx.fillText(boss.type.name, W/2, y+13);
+      const barX = x+10, barY = y+18, barW = boxW-20, barH = 8;
+      ctx.fillStyle = 'rgba(179,171,141,0.9)';
+      ctx.fillRect(barX, barY, barW, barH);
+      const frac = Math.max(0, Math.min(1, boss.hp/boss.maxHp));
+      ctx.fillStyle = '#7c2e28';
+      ctx.fillRect(barX, barY, barW*frac, barH);
+      ctx.strokeStyle = '#2b2a22'; ctx.lineWidth = 1;
+      ctx.strokeRect(barX, barY, barW, barH);
+      ctx.restore();
+      y += boxH + 6;
+    }
+  }
+
   function draw(){
     const wobbleMag = state.levelWobble.active ? state.levelWobble.mag : 0;
     const totalShake = Math.min(20, state.shakeMag + wobbleMag);
@@ -3833,7 +4018,9 @@
     drawPlayer();
     drawParticles();
     drawExplosions();
+    drawFloatingTexts();
     if(shaking) ctx.restore();
+    drawBossHealthBars(); // fixed overlay, deliberately drawn after the shake is undone
   }
 
   // ---------- LOW-HEALTH HEARTBEAT ----------
@@ -4164,6 +4351,24 @@
     SFX.unlock();
     togglePause();
   });
+
+  // ---------- AUTO-PAUSE ON TAB/WINDOW BLUR ----------
+  // rAF is throttled (often to ~0) in most browsers once a tab is hidden, but
+  // that's not guaranteed everywhere (some mobile webviews, background tabs
+  // that still get occasional frames) — auto-pausing here means the player
+  // never comes back to unexpected damage or a silently-ended run. Deliberately
+  // one-directional: regaining focus does NOT auto-resume, so the player
+  // always has to consciously un-pause rather than being dropped back into
+  // action mid-thought.
+  function autoPauseOnHidden(){
+    if(state.running && !state.inBanner && !state.paused){
+      pauseGame();
+      document.getElementById('pauseOverlay').style.display = 'flex';
+      updatePauseBtnLabel();
+    }
+  }
+  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) autoPauseOnHidden(); });
+  window.addEventListener('blur', autoPauseOnHidden);
 
   // ---------- HELP / QUICK REFERENCE ----------
   // A single activeModal flag (rather than separate help/comments booleans)
