@@ -134,6 +134,7 @@
     font-family:'Courier New', Courier, monospace;
     color:var(--ink);
     -webkit-user-select:none; user-select:none;
+    overflow-x:hidden;
   }
   /* Game fills the viewport exactly, as before; the SEO section below it is
      reached by scrolling the page rather than living inside the play area. */
@@ -162,7 +163,7 @@
     position:relative; width:100%; flex:1 1 auto; min-height:0;
     filter: sepia(0.12) contrast(1.06) saturate(0.85);
   }
-  canvas{ display:block; position:absolute; top:0; left:0; touch-action:none; }
+  canvas{ display:block; position:absolute; top:0; left:0; width:100%; height:100%; touch-action:none; }
   #vignette{
     position:absolute; inset:0; pointer-events:none;
     background: radial-gradient(ellipse at center, rgba(0,0,0,0) 55%, rgba(30,28,20,0.35) 100%);
@@ -764,10 +765,22 @@
     // left after the ad banner (and its gap) at the top of the page, so the
     // game never overlaps or gets pushed off-screen by the ad.
     const rect = wrapEl.getBoundingClientRect();
-    W = rect.width; H = rect.height;
+    // if #wrap hasn't been laid out yet (or briefly reports 0 during an ad
+    // reflow), fall back to the viewport rather than collapsing the canvas
+    // to the browser's tiny 300x150 default — a stale/undersized backing
+    // store is exactly what produces a small, blank-looking, oddly-placed
+    // game area on some mobile browsers.
+    W = rect.width || window.innerWidth;
+    H = rect.height || window.innerHeight;
     canvas.width = W; canvas.height = H;
   }
   window.addEventListener('resize', resize);
+  window.addEventListener('orientationchange', ()=>{ setTimeout(()=>{ resize(); computeLayout(); }, 60); });
+  // iOS Safari (and some Android browsers) can restore a page from the
+  // back/forward cache — or resume a backgrounded tab — with stale layout
+  // metrics; re-measure whenever the page becomes visible/active again so a
+  // reopened tab never gets stuck showing an undersized or blank field.
+  window.addEventListener('pageshow', ()=>{ resize(); computeLayout(); });
   resize();
 
   // ---------- SOUND (synthesized, no audio files) ----------
@@ -2553,11 +2566,14 @@
     updateLevelProgressBadge();
 
     const streakEl = document.getElementById('streakNote');
-    if(state.comboStreak>0){
-      streakEl.style.display = 'block';
-      document.getElementById('streakVal').textContent = state.comboStreak;
-    } else {
-      streakEl.style.display = 'none';
+    if(streakEl){
+      if(state.comboStreak>0){
+        streakEl.style.display = 'block';
+        const sv = document.getElementById('streakVal');
+        if(sv) sv.textContent = state.comboStreak;
+      } else {
+        streakEl.style.display = 'none';
+      }
     }
   }
 
@@ -4367,7 +4383,10 @@
       updatePauseBtnLabel();
     }
   }
-  document.addEventListener('visibilitychange', ()=>{ if(document.hidden) autoPauseOnHidden(); });
+  document.addEventListener('visibilitychange', ()=>{
+    if(document.hidden) autoPauseOnHidden();
+    else { resize(); computeLayout(); }
+  });
   window.addEventListener('blur', autoPauseOnHidden);
 
   // ---------- HELP / QUICK REFERENCE ----------
