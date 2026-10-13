@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Development — Attritable Swarm</title>
+<meta name="description" content="Technical overview of Attritable Swarm: built as a lightweight single-file HTML5 and JavaScript browser game with synthesized Web Audio.">
+<link rel="canonical" href="https://attritableswarm.org/development.html">
+<style>
+  :root{ --paper:#dbd5bd; --ink:#2b2a22; --ink-soft:#4a4636; --olive:#454f34; --red:#7c2e28; }
+  body{ margin:0; background:var(--paper); color:var(--ink-soft); font-family:'Courier New', Courier, monospace; line-height:1.7; }
+  main{ max-width:760px; margin:0 auto; padding:40px 20px 60px; }
+  h1{ color:var(--olive); letter-spacing:2px; font-size:24px; }
+  h2{ color:var(--red); letter-spacing:1.5px; font-size:15px; margin-top:28px; }
+  a{ color:var(--olive); }
+  .backLink{ display:inline-block; margin-bottom:20px; }
+  ul{ padding-left:22px; }
+</style>
+</head>
+<body>
+<main>
+  <a class="backLink" href="index.html">&larr; Back to Attritable Swarm</a>
+  <h1>DEVELOPMENT OVERVIEW</h1>
+
+  <h2>ARCHITECTURE &amp; TECH STACK</h2>
+  <p>
+    Attritable Swarm is built as a lightweight, high-performance web application designed to run
+    instantly inside modern desktop and mobile browsers without external dependencies or heavy frameworks.
+  </p>
+  <ul>
+    <li><b>Core Tech:</b> Vanilla HTML5, CSS3, and modern JavaScript (ES6+).</li>
+    <li><b>Rendering:</b> Custom HTML5 Canvas rendering loop with procedural battlefield generation, screen shake matrices, particle systems, and canvas-based UI integration.</li>
+    <li><b>Audio:</b> Fully synthesized audio engine utilizing the browser's Web Audio API (`AudioContext`) — no external audio files or downloads required.</li>
+    <li><b>Persistence:</b> Local storage implementation with robust fallback handling for private or restricted browser contexts.</li>
+  </ul>
+
+  <h2>DEPLOYMENT &amp; HOSTING</h2>
+  <p>
+    The game source code is hosted on GitHub and deployed directly via custom domain configuration to
+    <b>attritableswarm.org</b>. Continuous updates to the repository update the live environment instantly.
+  </p>
+
+  <h2>OPTIMIZATION</h2>
+  <p>
+    Engineered with responsive canvas scaling, touch-device adaptors, and high-DPI display adjustments to ensure 
+    smooth gameplay across desktop monitors, laptops, tablets, and mobile phones.
+  </p>
+
+  <p><a href="about.html">&larr; About Attritable Swarm</a> &nbsp;|&nbsp; <a href="how-to-play.html">How to Play &rarr;</a></p>
+</main>
+</body>
+</html>
