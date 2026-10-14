@@ -15,6 +15,7 @@
   a{ color:var(--olive); }
   .backLink{ display:inline-block; margin-bottom:20px; }
   ul{ padding-left:22px; }
+  footer{ margin-top:36px; padding-top:14px; border-top:2px solid var(--ink-soft); font-size:13px; }
 </style>
 </head>
 <body>
@@ -24,14 +25,15 @@
 
   <h2>ARCHITECTURE &amp; TECH STACK</h2>
   <p>
-    Attritable Swarm is built as a lightweight, high-performance web application designed to run
-    instantly inside modern desktop and mobile browsers without external dependencies or heavy frameworks.
+    Attritable Swarm is built as a lightweight web application designed to run instantly inside
+    modern desktop and mobile browsers with no frameworks or libraries.
   </p>
   <ul>
-    <li><b>Core Tech:</b> Vanilla HTML5, CSS3, and modern JavaScript (ES6+).</li>
-    <li><b>Rendering:</b> Custom HTML5 Canvas rendering loop with procedural battlefield generation, screen shake matrices, particle systems, and canvas-based UI integration.</li>
-    <li><b>Audio:</b> Fully synthesized audio engine utilizing the browser's Web Audio API (`AudioContext`) — no external audio files or downloads required.</li>
-    <li><b>Persistence:</b> Local storage implementation with robust fallback handling for private or restricted browser contexts.</li>
+    <li><b>Core Tech:</b> Vanilla HTML5, CSS3, and modern JavaScript (ES6+) in a single page, with no frameworks or game libraries.</li>
+    <li><b>Rendering:</b> Custom HTML5 Canvas rendering loop with seeded battlefield terrain, screen shake, particle effects, and canvas-based UI integration.</li>
+    <li><b>Audio:</b> Fully synthesized audio engine utilizing the browser's Web Audio API (<code>AudioContext</code>) — no external audio files or downloads required.</li>
+    <li><b>Persistence:</b> Local storage implementation with fallback handling for private or restricted browser contexts.</li>
+    <li><b>Third-party services:</b> Google AdSense (advertising) and Google Analytics (usage statistics). See the <a href="privacy.html">Privacy Policy</a>.</li>
   </ul>
 
   <h2>DEPLOYMENT &amp; HOSTING</h2>
@@ -42,11 +44,20 @@
 
   <h2>OPTIMIZATION</h2>
   <p>
-    Engineered with responsive canvas scaling, touch-device adaptors, and high-DPI display adjustments to ensure 
-    smooth gameplay across desktop monitors, laptops, tablets, and mobile phones.
+    Engineered with responsive canvas scaling and touch-device controls to support
+    gameplay across desktop monitors, laptops, tablets, and mobile phones.
   </p>
 
   <p><a href="about.html">&larr; About Attritable Swarm</a> &nbsp;|&nbsp; <a href="how-to-play.html">How to Play &rarr;</a></p>
+
+  <footer>
+    <a href="index.html">Game</a> |
+    <a href="about.html">About</a> |
+    <a href="how-to-play.html">How to Play</a> |
+    <a href="development.html">Development</a> |
+    <a href="privacy.html">Privacy</a> |
+    <a href="mailto:attritable.swarm.game.contact@gmail.com">Contact</a>
+  </footer>
 </main>
 </body>
 </html>

@@ -147,8 +147,11 @@
     -webkit-user-select:text; user-select:text;
     color:var(--ink-soft); line-height:1.7; font-size:13px;
   }
-  body.has-touch{ overflow:hidden; }
-  body.has-touch #seoInfo{ display:none; }
+  body.has-touch{ overflow-x:hidden; overflow-y:auto; }
+  body.has-touch #seoInfo .seoLong{ display:none; }
+  body.has-touch #seoInfo{ padding:14px 16px 24px; }
+  #siteFooter{ margin-top:22px; padding-top:12px; border-top:2px solid var(--ink-soft); font-size:13px; text-align:center; }
+  #siteFooter a{ margin:0 4px; }
   #seoInfo h1{ font-size:20px; letter-spacing:2px; color:var(--olive); margin:0 0 8px; }
   #seoInfo h2{ font-size:14px; letter-spacing:1.5px; color:var(--red); margin:22px 0 8px; }
   #seoInfo a{ color:var(--olive); }
@@ -158,7 +161,7 @@
     display:flex; align-items:center; justify-content:center;
     background:var(--paper-dark); overflow:hidden;
   }
-  #adGap{ flex-shrink:0; height:16px; width:100%; } /* pixel barrier between the ad and the game UI */
+  #adGap{ flex-shrink:0; height:28px; width:100%; } /* pixel barrier between the ad and the game UI */
   #wrap{
     position:relative; width:100%; flex:1 1 auto; min-height:0;
     filter: sepia(0.12) contrast(1.06) saturate(0.85);
@@ -329,7 +332,7 @@
   #eventStatus .stamp{ display:block; margin-bottom:3px; font-size:clamp(7px,1.8vw,10px); }
 
   .overlay{
-    position:fixed; inset:0; z-index:30; display:flex; align-items:center; justify-content:center;
+    position:absolute; inset:0; z-index:30; display:flex; align-items:center; justify-content:center;
     background:rgba(43,42,34,0.55); overflow-y:auto; padding:16px 0;
   }
   .card{
@@ -594,6 +597,12 @@
         <button id="dailyOpBtn" style="display:none;">DAILY OP</button>
         <button id="motorPoolBtn" style="display:none;">MOTOR POOL</button>
       </div>
+      <p style="text-align:center; font-size:11px; margin:12px 0 0;">
+        <a href="about.html" target="_blank" rel="noopener" style="color:var(--olive);">About</a> |
+        <a href="how-to-play.html" target="_blank" rel="noopener" style="color:var(--olive);">How to Play</a> |
+        <a href="privacy.html" target="_blank" rel="noopener" style="color:var(--olive);">Privacy</a> |
+        <a href="mailto:attritable.swarm.game.contact@gmail.com" style="color:var(--olive);">Contact</a>
+      </p>
     </div>
   </div>
 
@@ -692,6 +701,7 @@
 </div><!-- /gameContainer -->
 
 <section id="seoInfo">
+  <div class="seoLong">
   <h1>ATTRITABLE SWARM — Free Military Drone Swarm Browser Game</h1>
   <p>
     Attritable Swarm is a free, no-download military-themed browser game. Command a mobile drone
@@ -713,6 +723,15 @@
     modern attritable drone warfare doctrine. It's completely free to play, works on any modern
     browser, and requires no download or account.
   </p>
+  </div>
+  <footer id="siteFooter">
+    <a href="index.html">Game</a> |
+    <a href="about.html">About</a> |
+    <a href="how-to-play.html">How to Play</a> |
+    <a href="development.html">Development</a> |
+    <a href="privacy.html">Privacy</a> |
+    <a href="mailto:attritable.swarm.game.contact@gmail.com">Contact</a>
+  </footer>
 </section>
 
 <script>
