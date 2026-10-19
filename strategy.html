@@ -1,0 +1,148 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Strategy Guide — Attritable Swarm</title>
+<meta name="description" content="Strategy guide for Attritable Swarm: how many drones each target needs, arsenal management, efficiency streaks, supply crates, battlefield events, and boss levels.">
+<link rel="canonical" href="https://attritableswarm.org/strategy.html">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
+<style>
+  :root{ --paper:#dbd5bd; --ink:#2b2a22; --ink-soft:#4a4636; --olive:#454f34; --red:#7c2e28; }
+  body{ margin:0; background:var(--paper); color:var(--ink-soft); font-family:'Courier New', Courier, monospace; line-height:1.7; }
+  main{ max-width:760px; margin:0 auto; padding:40px 20px 60px; }
+  h1{ color:var(--olive); letter-spacing:2px; font-size:24px; }
+  h2{ color:var(--red); letter-spacing:1.5px; font-size:15px; margin-top:28px; }
+  a{ color:var(--olive); }
+  .backLink{ display:inline-block; margin-bottom:20px; }
+  ul{ padding-left:22px; }
+  .tableWrap{ overflow-x:auto; }
+  table{ border-collapse:collapse; width:100%; font-size:13px; }
+  th, td{ border:1px solid var(--ink-soft); padding:4px 8px; text-align:left; }
+  th{ background:rgba(69,79,52,0.18); color:var(--olive); }
+  .note{ font-size:12px; }
+  footer{ margin-top:36px; padding-top:14px; border-top:2px solid var(--ink-soft); font-size:13px; }
+  footer .disclaimer{ font-size:11px; margin:12px 0 0; line-height:1.5; }
+</style>
+</head>
+<body>
+<main>
+  <a class="backLink" href="/">&larr; Back to Attritable Swarm</a>
+  <h1>STRATEGY GUIDE</h1>
+  <p>
+    Attritable Swarm is a resource game disguised as an arcade shooter. Every release spends drones you
+    cannot easily get back, so the winning question is always the same: how many drones does this target
+    deserve? This guide covers the numbers and habits that help you climb the ranks. New to the game? Start
+    with the <a href="how-to-play.html">field manual</a>.
+  </p>
+
+  <h2>THE CORE LOOP: RIGHT-SIZE THE SWARM</h2>
+  <p>
+    Too few drones leave the target alive and firing back. Too many waste arsenal you will need later.
+    The red <b>NEED</b> tick above the slider shows how many drones finish the target at its current health.
+    Two cautions: each release deals roughly &plusmn;15% variable damage, so add a small margin (5&ndash;10%)
+    when you want a one-shot kill, and the tick does not count drones still in flight, so wait for your
+    swarm to land before releasing again.
+  </p>
+
+  <h2>APPROXIMATE COST BY TARGET</h2>
+  <div class="tableWrap">
+  <table>
+    <tr><th>Target</th><th>Drones to destroy</th><th>Weapons armed after</th><th>Base score</th></tr>
+    <tr><td>Soldier squad</td><td>~8</td><td>1.0 s</td><td>15</td></tr>
+    <tr><td>Vehicle</td><td>~20</td><td>1.5 s</td><td>35</td></tr>
+    <tr><td>Vehicle convoy</td><td>~54</td><td>2.0 s</td><td>70</td></tr>
+    <tr><td>Enemy tank</td><td>~110</td><td>2.5 s</td><td>120</td></tr>
+    <tr><td>Weapons plant</td><td>~295</td><td>3.5 s</td><td>250</td></tr>
+    <tr><td>Fighter jet (elite)</td><td>~385</td><td>1.8 s</td><td>400</td></tr>
+    <tr><td>Enemy UAS (elite)</td><td>~485</td><td>3.0 s</td><td>420</td></tr>
+    <tr><td>Tank column (elite)</td><td>~540</td><td>3.2 s</td><td>450</td></tr>
+    <tr><td>Attack helicopter (boss)</td><td>~590</td><td>2.5 s</td><td>500</td></tr>
+    <tr><td>High-value target</td><td>~40</td><td>2.0 s</td><td>750</td></tr>
+  </table>
+  </div>
+  <p class="note">Figures assume average damage and are approximate. They may change as the game is rebalanced.</p>
+
+  <h2>ARSENAL MANAGEMENT</h2>
+  <ul>
+    <li><b>Hold fire to recover.</b> Regeneration starts slow and climbs the longer you go without releasing, reaching its maximum after roughly 12 seconds. Short pauses between engagements pay off; constant firing keeps regeneration low.</li>
+    <li><b>Overkill is partly refunded.</b> Drones beyond what the kill required are returned, but a precise release is still cheaper than a refunded one.</li>
+    <li><b>Clear levels to grow.</b> Each cleared level raises your arsenal cap, and a fast clear (a Swift Victory) adds extra cap and a drone bonus.</li>
+    <li><b>Depletion ends the run.</b> If your arsenal hits zero once the last swarm lands, the mission is over, so keep a reserve for the next arrival.</li>
+  </ul>
+
+  <h2>TARGET PRIORITY</h2>
+  <p>
+    All armed targets drain the same health bar, and enemy fire grows stronger every level. Targets cannot
+    shoot until their spin-up finishes, so a decisive strike inside that window costs you no health at all.
+    Cheap targets are the best trade: a soldier squad takes only about 8 drones to silence. Expensive targets
+    deserve a big salvo early, before they arm, rather than a slow trickle while they hit you.
+  </p>
+
+  <h2>SCORING &amp; EFFICIENCY STREAKS</h2>
+  <ul>
+    <li><b>Speed bonus:</b> kills earn up to 40 extra points, shrinking the longer the target has been on the field.</li>
+    <li><b>Efficiency:</b> a kill with very little overkill and few wasted drones earns a bonus and builds a streak. The streak multiplier climbs with each clean kill and tops out at 2.5x.</li>
+    <li><b>Sloppy kills reset the streak.</b> Heavy overkill breaks it, so aim for the NEED tick, not far past it.</li>
+    <li><b>Splash:</b> large swarms bleed damage onto nearby targets. Splash kills neither build nor break your streak.</li>
+  </ul>
+
+  <h2>LANES &amp; MOVEMENT</h2>
+  <p>
+    Space and the RELEASE button fire on the target in your lane, while clicking or tapping a target fires
+    on it directly from any lane. Positioning still matters: drive into a supply crate's lane to collect it,
+    and move out of any lane marked by incoming artillery.
+  </p>
+
+  <h2>SUPPLY CRATES</h2>
+  <p>
+    Crates appear on every third level starting at level 3, with an occasional extra. They offer an arsenal
+    refill, a health boost, or from level 8 an EMP that delays every target's weapons. The reward is weighted
+    toward whatever you are shortest on, and an ignored crate disappears after about 16 seconds. An EMP is
+    a strong emergency button against a crowded board.
+  </p>
+
+  <h2>BATTLEFIELD EVENTS</h2>
+  <ul>
+    <li><b>Incoming artillery:</b> two lanes are marked with a 5-second countdown. Leave them or take heavy damage. The strike also wipes out enemy targets in those lanes, though you earn no score for them.</li>
+    <li><b>Jammed comms:</b> target names, health bars, and the NEED tick vanish for about 10 seconds. Use the cost table above to estimate drone counts.</li>
+    <li><b>Swarm window:</b> drone effectiveness rises 40% for about 8 seconds. Spend your biggest salvos here.</li>
+    <li><b>High-value target:</b> a fragile, gold-ringed dignitary worth 750 points. Roughly 40 drones secure it, which makes it the best return in the game.</li>
+  </ul>
+
+  <h2>BOSS &amp; ELITE LEVELS</h2>
+  <p>
+    An attack helicopter boss arrives every eighth level, and from level 15 rare elite units (fighter jet,
+    enemy UAS, tank column) can join the wave. Each needs 385&ndash;590 drones, while the slider limits how
+    large a single release can be, so expect two or more salvos. Save arsenal before milestone levels, and
+    line a swarm window up with the boss if one appears.
+  </p>
+
+  <h2>QUICK RULES OF THUMB</h2>
+  <ul>
+    <li>Watch the NEED tick, add a small margin, and let each swarm land before the next.</li>
+    <li>Pause between targets to let regeneration build.</li>
+    <li>Strike early inside the spin-up window; do not trade health for drones.</li>
+    <li>Take crates when health or arsenal is low, not just when they are convenient.</li>
+    <li>Clear levels quickly when you can: the cap and drone bonus compound.</li>
+  </ul>
+
+  <p><a href="how-to-play.html">&larr; How to Play</a> &nbsp;|&nbsp; <a href="faq.html">FAQ &rarr;</a></p>
+
+  <footer>
+    <a href="/">Game</a> |
+    <a href="about.html">About</a> |
+    <a href="how-to-play.html">How to Play</a> |
+    <a href="strategy.html">Strategy</a> |
+    <a href="faq.html">FAQ</a> |
+    <a href="development.html">Development</a> |
+    <a href="privacy.html">Privacy</a> |
+    <a href="mailto:attritable.swarm.game.contact@gmail.com">Contact</a>
+    <p class="disclaimer">Attritable Swarm is an independent, fictional game. It is not affiliated with, endorsed by, or sponsored by the U.S. Department of Defense, the U.S. Army, or any government agency. Rank names and insignia are used for thematic purposes only.</p>
+  </footer>
+</main>
+</body>
+</html>

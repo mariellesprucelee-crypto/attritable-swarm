@@ -1,25 +1,40 @@
 <?xml version="1.0" encoding="UTF-8"?>
- 
+
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
- 
+
   <url>
     <loc>https://attritableswarm.org/</loc>
+    <lastmod>2026-10-15</lastmod>
   </url>
- 
+
   <url>
     <loc>https://attritableswarm.org/about.html</loc>
+    <lastmod>2026-10-15</lastmod>
   </url>
- 
+
   <url>
     <loc>https://attritableswarm.org/how-to-play.html</loc>
+    <lastmod>2026-10-15</lastmod>
   </url>
- 
+
+  <url>
+    <loc>https://attritableswarm.org/strategy.html</loc>
+    <lastmod>2026-10-15</lastmod>
+  </url>
+
+  <url>
+    <loc>https://attritableswarm.org/faq.html</loc>
+    <lastmod>2026-10-15</lastmod>
+  </url>
+
   <url>
     <loc>https://attritableswarm.org/development.html</loc>
+    <lastmod>2026-10-15</lastmod>
   </url>
- 
+
   <url>
     <loc>https://attritableswarm.org/privacy.html</loc>
+    <lastmod>2026-10-15</lastmod>
   </url>
- 
+
 </urlset>

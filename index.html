@@ -110,9 +110,10 @@
 </script>
 
 
-<!-- Favicon: inline SVG so the game stays a single self-contained file —
-     a paper-toned target reticle matching the in-game HUD palette -->
-<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='8' fill='%23454f34'/%3E%3Ccircle cx='32' cy='32' r='20' fill='none' stroke='%23dbd5bd' stroke-width='3'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%237c2e28'/%3E%3Cline x1='32' y1='6' x2='32' y2='18' stroke='%23dbd5bd' stroke-width='3'/%3E%3Cline x1='32' y1='46' x2='32' y2='58' stroke='%23dbd5bd' stroke-width='3'/%3E%3Cline x1='6' y1='32' x2='18' y2='32' stroke='%23dbd5bd' stroke-width='3'/%3E%3Cline x1='46' y1='32' x2='58' y2='32' stroke='%23dbd5bd' stroke-width='3'/%3E%3C/svg%3E">
+<link rel="icon" href="/favicon.ico" sizes="any">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="icon" type="image/png" sizes="48x48" href="/favicon-48x48.png">
+<link rel="apple-touch-icon" href="/apple-touch-icon.png">
 <style>
   :root{
     --paper:#dbd5bd;
@@ -152,6 +153,7 @@
   body.has-touch #seoInfo{ padding:14px 16px 24px; }
   #siteFooter{ margin-top:22px; padding-top:12px; border-top:2px solid var(--ink-soft); font-size:13px; text-align:center; }
   #siteFooter a{ margin:0 4px; }
+  #siteFooter .disclaimer{ font-size:11px; margin:10px 0 0; line-height:1.5; }
   #seoInfo h1{ font-size:20px; letter-spacing:2px; color:var(--olive); margin:0 0 8px; }
   #seoInfo h2{ font-size:14px; letter-spacing:1.5px; color:var(--red); margin:22px 0 8px; }
   #seoInfo a{ color:var(--olive); }
@@ -667,18 +669,24 @@
       <h2>QUICK REFERENCE</h2>
       <p>
         <b>MOVE:</b> &larr;/&rarr; or A/D (touch: the left/right buttons) &mdash; shifts your carrier between lanes.<br>
-        <b>FIRE:</b> Space bar, tap/click a target, or the touch RELEASE button &mdash; releases the swarm on whatever's in your lane.<br>
-        <b>DRONE RELEASE slider:</b> sets how many drones go out per release. Watch the red "NEED" tick above the slider &mdash; it shows the exact count left to finish off your hovered/current target, so you can avoid overkill.
+        <b>FIRE:</b> Space bar or the RELEASE button fires on the target in your lane. Clicking or tapping a target fires on it directly from any lane.<br>
+        <b>DRONE RELEASE slider:</b> sets how many drones go out per release. The red "NEED" tick shows how many drones finish your hovered/current target &mdash; it doesn't count swarms still in flight, so let one land before releasing again.
         <br><br>
         <b>ARSENAL</b> is finite and regenerates faster the longer you hold off deploying. Hit zero and the mission ends.
-        <br>
-        <b>TARGETS</b> can't be scared off &mdash; only drones remove them. Each has a spin-up delay before it starts firing back, then deals ongoing damage until destroyed. Threat rises: soldier &lt; vehicle &lt; vehicle convoy &lt; enemy tank &lt; weapons plant, with an attack helicopter boss on milestone levels.
         <br><br>
-        A clean kill with little wasted overkill earns an <b>EFFICIENCY bonus</b> and builds a streak multiplier. Clearing a level heals some health and raises your arsenal cap &mdash; the bonus shrinks each level.
+        <b>TARGETS</b> can't be scared off &mdash; only drones remove them. Each has a spin-up delay before it starts firing back, then deals ongoing damage until destroyed. Threat rises: soldier &lt; vehicle &lt; vehicle convoy &lt; enemy tank &lt; weapons plant, with an attack helicopter boss every 8th level. From level 15, rare <b>ELITE UNITS</b> (fighter jet, enemy UAS, tank column) can appear.
         <br><br>
-        <b>SUPPLY CRATES</b> occasionally telegraph in (olive/gold ring, no threat) &mdash; fire on it, tap/click it, or just drive your carrier into that lane to collect. They roll an arsenal refill, a health boost, or (at higher levels) an EMP that stuns every active target's weapons. Ignore one too long and it disappears.
+        A clean kill with little wasted overkill earns an <b>EFFICIENCY bonus</b> and builds a streak multiplier. Clearing a level heals some health and raises your arsenal cap; a fast clear earns a Swift Victory bonus.
         <br><br>
-        <b>P</b> pauses the mission at any time.
+        <b>SUPPLY CRATES</b> telegraph in (olive/gold ring, no threat) &mdash; fire on it, tap/click it, or drive your carrier into its lane to collect. They roll an arsenal refill, a health boost, or (level 8+) an EMP that delays every active target's weapons. Ignore one too long and it disappears.
+        <br><br>
+        <b>BATTLEFIELD EVENTS:</b> incoming artillery (leave the marked lanes before impact), jammed comms (target intel hidden), a swarm window (+40% drone effectiveness), and a gold-ringed high-value target worth a big bonus.
+        <br><br>
+        <b>HOTKEYS:</b> P pause &middot; H or ? this manual &middot; M mute. The game also pauses automatically if you switch tabs.
+        <br><br>
+        <a href="strategy.html" target="_blank" rel="noopener" style="color:var(--olive);">Strategy Guide</a> |
+        <a href="how-to-play.html" target="_blank" rel="noopener" style="color:var(--olive);">Full Manual</a> |
+        <a href="faq.html" target="_blank" rel="noopener" style="color:var(--olive);">FAQ</a>
       </p>
       <button id="closeHelpBtn">RESUME MISSION</button>
     </div>
@@ -716,7 +724,7 @@
     <li>Your arsenal is finite and regenerates over time — manage it carefully to survive.</li>
     <li>Clear levels to heal up and raise your arsenal cap; watch for random battlefield events and supply crates.</li>
   </ul>
-  <p><a id="howToPlayLink" href="how-to-play.html">Full field manual / how to play</a> &nbsp;|&nbsp; <a id="aboutLink" href="about.html">About Attritable Swarm</a></p>
+  <p><a id="howToPlayLink" href="how-to-play.html">Full field manual / how to play</a> &nbsp;|&nbsp; <a id="aboutLink" href="about.html">About Attritable Swarm</a> &nbsp;|&nbsp; <a href="strategy.html">Strategy Guide</a> &nbsp;|&nbsp; <a href="faq.html">FAQ</a></p>
   <h2>ABOUT THE GAME</h2>
   <p>
     Built as a lightweight, single-page arcade strategy game, Attritable Swarm is inspired by
@@ -725,12 +733,15 @@
   </p>
   </div>
   <footer id="siteFooter">
-    <a href="index.html">Game</a> |
+    <a href="/">Game</a> |
     <a href="about.html">About</a> |
     <a href="how-to-play.html">How to Play</a> |
+    <a href="strategy.html">Strategy</a> |
+    <a href="faq.html">FAQ</a> |
     <a href="development.html">Development</a> |
     <a href="privacy.html">Privacy</a> |
     <a href="mailto:attritable.swarm.game.contact@gmail.com">Contact</a>
+    <p class="disclaimer">Attritable Swarm is an independent, fictional game. It is not affiliated with, endorsed by, or sponsored by the U.S. Department of Defense, the U.S. Army, or any government agency. Rank names and insignia are used for thematic purposes only.</p>
   </footer>
 </section>
 
